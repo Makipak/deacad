@@ -1,0 +1,18 @@
+{
+  "name": "@deacad/shared-types",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Zod schema + TS types dipakai bersama apps/web dan apps/api — satu sumber kebenaran shape data",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "deacad",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Platform sharing dokumen akademik — monorepo root",
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:web": "turbo run dev --filter=web",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "db:generate": "pnpm --filter @deacad/database db:generate",
+    "db:migrate": "pnpm --filter @deacad/database db:migrate",
+    "db:seed": "pnpm --filter @deacad/database db:seed",
+    "db:studio": "pnpm --filter @deacad/database db:studio"
+  },
+  "devDependencies": {
+    "turbo": "2.10.2",
+    "typescript": "5.9.2"
+  }
+}

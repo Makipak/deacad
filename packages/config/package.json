@@ -1,0 +1,19 @@
+{
+  "name": "@deacad/config",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Konfigurasi eslint & tsconfig yang dipakai bersama semua app/package",
+  "exports": {
+    "./eslint/base": "./eslint/base.js",
+    "./eslint/nextjs": "./eslint/nextjs.js",
+    "./eslint/nestjs": "./eslint/nestjs.js",
+    "./typescript/base.json": "./typescript/base.json",
+    "./typescript/nextjs.json": "./typescript/nextjs.json",
+    "./typescript/nestjs.json": "./typescript/nestjs.json"
+  },
+  "devDependencies": {
+    "eslint": "^9.18.0",
+    "typescript-eslint": "^8.20.0",
+    "eslint-config-next": "16.2.10"
+  }
+}

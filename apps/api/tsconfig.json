@@ -1,0 +1,8 @@
+{
+  "extends": "@deacad/config/typescript/nestjs.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "rootDir": "src"
+  },
+  "include": ["src"]
+}

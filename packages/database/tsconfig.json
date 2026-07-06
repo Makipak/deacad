@@ -1,0 +1,8 @@
+{
+  "extends": "@deacad/config/typescript/base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "."
+  },
+  "include": ["src", "prisma"]
+}

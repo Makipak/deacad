@@ -1,0 +1,21 @@
+/* Tailwind v4 — satu baris import, tidak perlu lagi @tailwind base/components/utilities terpisah. */
+@import "tailwindcss";
+
+/* Token warna minimal — UI sengaja dibuat sederhana dulu, prioritas demo jalan (bukan polish visual). */
+:root {
+  --color-bg: #ffffff;
+  --color-fg: #171717;
+  --color-muted: #6b7280;
+  --color-border: #e5e7eb;
+  --color-primary: #2563eb;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+}

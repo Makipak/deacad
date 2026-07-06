@@ -1,0 +1,24 @@
+{
+  "name": "@deacad/worker",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Consumer BullMQ — convert PDF/PPTX jadi gambar per halaman (LibreOffice + Poppler)",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.716.0",
+    "@deacad/database": "workspace:*",
+    "bullmq": "^5.79.2"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "catalog:",
+    "@types/node": "catalog:"
+  }
+}

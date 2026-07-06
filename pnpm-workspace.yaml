@@ -1,0 +1,11 @@
+# Daftar folder yang dianggap package pnpm dalam monorepo ini.
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# Catalog: versi dependency yang dipakai bersama lintas package,
+# supaya tidak drift (misal web pakai zod beda versi dari api).
+catalog:
+  zod: ^4.4.3
+  typescript: ^5.9.2
+  "@types/node": ^22.10.0

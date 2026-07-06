@@ -1,0 +1,110 @@
+# Orchestration lokal/production sederhana: web, api, worker, postgres, redis, nginx.
+# Container worker sengaja dipisah dari api (lihat ARCHITECTURE.md #3) —
+# LibreOffice berat dan rawan hang, jadi tidak boleh numpang di proses API utama.
+name: deacad
+
+services:
+  # Database utama — sumber kebenaran seluruh data aplikasi.
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: deacad
+      POSTGRES_PASSWORD: deacad
+      POSTGRES_DB: deacad
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U deacad"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Broker queue BullMQ — penghubung api (producer) dan worker (consumer).
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Object storage lokal (kompatibel S3) untuk file asli & hasil convert.
+  storage:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - storage_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  # REST API — auth, business logic, webhook Midtrans.
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+
+  # Consumer queue — convert PDF/PPTX jadi gambar per halaman via LibreOffice+Poppler.
+  worker:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    # Tidak expose port — worker murni background consumer, tidak menerima HTTP.
+
+  # Frontend publik + admin panel, di-render server-side untuk SEO.
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+
+  # Reverse proxy + TLS termination (Certbot dijalankan terpisah di host).
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - web
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+
+volumes:
+  postgres_data:
+  redis_data:
+  storage_data:

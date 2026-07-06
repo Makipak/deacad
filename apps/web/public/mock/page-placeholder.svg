@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" width="600" height="800">
+  <!-- Placeholder halaman dokumen untuk demo slideshow — di production ini diganti hasil convert worker. -->
+  <rect width="600" height="800" fill="#f3f4f6" />
+  <rect x="60" y="80" width="480" height="24" fill="#d1d5db" />
+  <rect x="60" y="130" width="400" height="14" fill="#e5e7eb" />
+  <rect x="60" y="155" width="420" height="14" fill="#e5e7eb" />
+  <rect x="60" y="180" width="360" height="14" fill="#e5e7eb" />
+  <rect x="60" y="240" width="480" height="300" fill="#e5e7eb" />
+  <text x="300" y="700" text-anchor="middle" font-family="system-ui, sans-serif" font-size="20" fill="#9ca3af">
+    Preview halaman (placeholder demo)
+  </text>
+</svg>

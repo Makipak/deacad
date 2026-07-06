@@ -1,0 +1,31 @@
+# Dependency install lokal, di-restore ulang lewat pnpm install.
+node_modules/
+
+# Output build tiap app.
+.next/
+dist/
+build/
+
+# Prisma client hasil generate — bukan source, jangan di-commit.
+packages/database/src/generated/
+
+# Cache Turborepo.
+.turbo/
+
+# Environment file berisi secret, jangan pernah commit.
+.env
+.env.local
+.env.*.local
+
+# Log & file OS/editor.
+*.log
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+
+# Swap file vim/nano — umum muncul kalau edit langsung di terminal Linux.
+*.swp
+*.swo
+
+# Cache incremental TypeScript (tsc --incremental) — regenerate otomatis, bukan source.
+*.tsbuildinfo
