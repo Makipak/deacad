@@ -9,3 +9,17 @@ catalog:
   zod: ^4.4.3
   typescript: ^5.9.2
   "@types/node": ^22.10.0
+
+# pnpm (10+) memblokir script postinstall package pihak ketiga secara default (proteksi
+# supply-chain). Package di bawah ini SUDAH DIVERIFIKASI butuh postinstall untuk compile
+# native binding (Prisma query engine, bcrypt, sharp, dst) — didaftarkan eksplisit di sini
+# supaya approved otomatis untuk siapa pun yang clone project ini, tidak perlu
+# `pnpm approve-builds` manual tiap install ulang.
+onlyBuiltDependencies:
+  - "@prisma/engines"
+  - bcrypt
+  - esbuild
+  - msgpackr-extract
+  - prisma
+  - sharp
+  - unrs-resolver
