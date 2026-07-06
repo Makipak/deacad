@@ -15,11 +15,13 @@ catalog:
 # native binding (Prisma query engine, bcrypt, sharp, dst) — didaftarkan eksplisit di sini
 # supaya approved otomatis untuk siapa pun yang clone project ini, tidak perlu
 # `pnpm approve-builds` manual tiap install ulang.
-onlyBuiltDependencies:
-  - "@prisma/engines"
-  - bcrypt
-  - esbuild
-  - msgpackr-extract
-  - prisma
-  - sharp
-  - unrs-resolver
+# Catatan: sejak pnpm 11 key ini bernama "allowBuilds" (map nama -> boolean), BUKAN lagi
+# "onlyBuiltDependencies" (array, format pnpm 10.x ke bawah).
+allowBuilds:
+  "@prisma/engines": true
+  bcrypt: true
+  esbuild: true
+  msgpackr-extract: true
+  prisma: true
+  sharp: true
+  unrs-resolver: true
