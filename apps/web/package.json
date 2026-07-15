@@ -2,12 +2,12 @@
   "name": "web",
   "private": true,
   "version": "0.1.0",
-  "description": "Next.js — frontend publik (browse/preview/upload) + admin panel. Demo mode: data mock, belum connect API.",
+  "description": "Next.js — frontend publik (browse/preview/upload) + admin panel, connect ke apps/api.",
   "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "dotenv -e ../../.env -- next dev",
+    "build": "dotenv -e ../../.env -- next build",
+    "start": "dotenv -e ../../.env -- next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
@@ -22,6 +22,7 @@
     "@tailwindcss/postcss": "^4.3.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^9.18.0",
     "tailwindcss": "^4.3.0",
     "typescript": "catalog:"

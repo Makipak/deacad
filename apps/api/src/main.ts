@@ -1,3 +1,4 @@
+import "./load-env.js"; // wajib paling awal — muat .env sebelum modul lain baca process.env saat di-import.
 import "reflect-metadata"; // wajib di-import paling awal — dipakai decorator metadata NestJS.
 import { NestFactory } from "@nestjs/core";
 import helmet from "helmet";

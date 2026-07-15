@@ -1,8 +1,11 @@
 {
+  // Project "default" ini untuk IDE/typecheck saja (noEmit) — mencakup semua .ts di package ini
+  // termasuk prisma.config.ts & prisma/seed.ts yang dijalankan langsung via CLI/tsx, bukan lewat
+  // dist. Build asli (yang jadi isi dist/, dikonsumsi apps/api & apps/worker) pakai
+  // tsconfig.build.json yang scope-nya cuma "src" supaya struktur dist/ tetap flat & bersih.
   "extends": "@deacad/config/typescript/base.json",
   "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "."
+    "noEmit": true
   },
-  "include": ["src", "prisma"]
+  "include": ["src", "prisma.config.ts", "prisma/seed.ts"]
 }

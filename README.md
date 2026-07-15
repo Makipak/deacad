@@ -42,8 +42,17 @@ Catatan Pop!_OS spesifik:
 - Kalau pakai Pop!_OS versi lama (22.04-based) dan `docker compose` (tanpa v2 plugin) belum kebaca,
   cek `docker compose version` — kalau error, jalankan ulang bagian Docker di script atau
   `sudo apt-get install -y docker-compose-plugin`.
-- Firewall UFW default Pop!_OS tidak block port lokal (3000/4000/5432/6379), jadi biasanya tidak perlu
+- Firewall UFW default Pop!_OS tidak block port lokal (3000/4000/5434/6379), jadi biasanya tidak perlu
   konfigurasi tambahan untuk development.
+- `docker-compose.yml` sengaja map container `postgres` ke **port host 5434**, bukan 5432 —
+  supaya tidak gampang bentrok dengan Postgres lain yang sudah jalan di mesin dev (native
+  `postgresql.service`, ATAU container Docker milik project lain yang kebetulan juga pakai 5432/5433).
+  Konflik seperti ini gagalnya bisa dua macam: Docker langsung menolak start (`port is already
+  allocated`, gampang ketahuan), ATAU — yang lebih berbahaya — `psql`/Prisma tetap berhasil connect
+  tapi ke database/container **yang salah** tanpa error apapun, karena mereka cuma tahu "port 5434
+  merespons", bukan siapa pemiliknya. Kalau masih curiga ada bentrok: `docker ps -a` (cek container
+  dari project LAIN juga, bukan cuma `docker compose ps` project ini) dan `ss -tlnp | grep -E
+  '543[0-9]'` sebelum asumsi sebuah port itu punya project ini.
 
 ## Menjalankan (development)
 
@@ -71,6 +80,16 @@ pnpm db:seed
 
 pnpm dev
 ```
+
+> **Peringatan**: kolom `search_vector` (full-text search, lihat
+> [prisma/sql/search-vector.sql](./packages/database/prisma/sql/search-vector.sql)) dibuat lewat SQL
+> manual, bukan `schema.prisma` biasa. Prisma selalu salah mendeteksinya sebagai drift di migrasi
+> BARU manapun setelah ini (ingin men-drop index/generated column-nya). `pnpm db:migrate` di atas aman
+> dipakai untuk clone pertama kali (cuma apply migrasi yang sudah ada), tapi untuk menambah migrasi
+> baru ke depannya, jangan jalankan `pnpm db:migrate` langsung — pakai
+> `pnpm --filter @deacad/database exec prisma migrate dev --create-only --name <nama>`, hapus baris
+> palsu `ALTER TABLE "documents" ALTER COLUMN "search_vector" DROP DEFAULT;` dari migration.sql yang
+> dihasilkan, baru jalankan `pnpm db:migrate` untuk apply.
 
 ### 3. Full stack via Docker Compose
 

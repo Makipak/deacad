@@ -1,30 +1,37 @@
 import { DocumentCard } from "@/components/document-card";
-import { mockCategories, mockDocuments } from "@/lib/mock-data";
+import type { Category, Document } from "@deacad/shared-types";
 
 // Next.js 16: searchParams sekarang WAJIB async (bukan lagi object langsung) — harus di-await.
 type SearchParams = Promise<{ q?: string; category?: string; sort?: string }>;
 
-// Server Component — filter & sort dieksekusi di server sebelum HTML dikirim (SSR, sesuai
-// alasan pemilihan Next.js untuk SEO halaman publik di ARCHITECTURE.md #2).
-// Catatan: filter di sini masih terhadap array mock, nanti tinggal diganti query ke
-// GET /documents (ARCHITECTURE.md #11) begitu apps/api sudah di-connect.
+interface DocumentListResponse {
+  items: Document[];
+  nextCursor: string | null;
+}
+
+const API_BASE = `${process.env.NEXT_PUBLIC_API_URL}/api/v1`;
+
+// Server Component — fetch langsung ke apps/api (endpoint publik, tidak butuh auth) saat SSR,
+// sesuai alasan pemilihan Next.js untuk SEO halaman publik di ARCHITECTURE.md #2.
 export default async function BrowsePage({ searchParams }: { searchParams: SearchParams }) {
   const { q, category, sort } = await searchParams;
 
-  let documents = mockDocuments.filter((doc) => doc.status === "ready");
-  if (q) {
-    const needle = q.toLowerCase();
-    documents = documents.filter((doc) => doc.title.toLowerCase().includes(needle));
-  }
-  if (category) {
-    documents = documents.filter((doc) => doc.categoryId === category);
-  }
-  if (sort === "terpopuler") {
-    documents = [...documents].sort((a, b) => b.downloadCount - a.downloadCount);
-  } else {
-    // default "terbaru" — mock sudah terurut kira-kira kronologis, cukup untuk demo.
-    documents = [...documents].reverse();
-  }
+  const query = new URLSearchParams();
+  if (q) query.set("q", q);
+  if (category) query.set("categoryId", category);
+  query.set("sort", sort === "terpopuler" ? "terpopuler" : "terbaru");
+
+  const [documentsRes, categories] = await Promise.all([
+    fetch(`${API_BASE}/documents?${query.toString()}`, { cache: "no-store" })
+      .then((res) => res.json() as Promise<DocumentListResponse>)
+      .catch(() => ({ items: [], nextCursor: null })),
+    fetch(`${API_BASE}/categories`, { cache: "no-store" })
+      .then((res) => res.json() as Promise<Category[]>)
+      .catch(() => []),
+  ]);
+
+  const categoryName = (categoryId: string | null) =>
+    categories.find((cat) => cat.id === categoryId)?.name ?? "Tanpa kategori";
 
   return (
     <div>
@@ -49,7 +56,7 @@ export default async function BrowsePage({ searchParams }: { searchParams: Searc
           style={{ borderColor: "var(--color-border)" }}
         >
           <option value="">Semua kategori</option>
-          {mockCategories.map((cat) => (
+          {categories.map((cat) => (
             <option key={cat.id} value={cat.id}>
               {cat.name}
             </option>
@@ -74,10 +81,10 @@ export default async function BrowsePage({ searchParams }: { searchParams: Searc
       </form>
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {documents.map((doc) => (
-          <DocumentCard key={doc.id} document={doc} />
+        {documentsRes.items.map((doc) => (
+          <DocumentCard key={doc.id} document={doc} categoryName={categoryName(doc.categoryId)} />
         ))}
-        {documents.length === 0 && (
+        {documentsRes.items.length === 0 && (
           <p className="col-span-full text-sm" style={{ color: "var(--color-muted)" }}>
             Tidak ada dokumen yang cocok dengan pencarian.
           </p>

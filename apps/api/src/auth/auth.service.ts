@@ -4,7 +4,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
+import { JwtService, type JwtSignOptions } from "@nestjs/jwt";
 import { hash, compare } from "bcrypt";
 import { prisma } from "@deacad/database";
 import type { LoginInput, RegisterInput } from "@deacad/shared-types";
@@ -144,7 +144,7 @@ export class AuthService {
   private async issueTokenPair(user: AuthenticatedUser, familyId: string): Promise<TokenPair> {
     const accessToken = this.jwtService.sign(user, {
       secret: process.env.JWT_ACCESS_SECRET,
-      expiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? "15m",
+      expiresIn: (process.env.JWT_ACCESS_EXPIRES_IN ?? "15m") as JwtSignOptions["expiresIn"],
     });
 
     const rawRefreshToken = generateOpaqueToken();

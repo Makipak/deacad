@@ -1,5 +1,6 @@
 /// <reference types="next" />
 /// <reference types="next/image-types/global" />
+import "./.next/dev/types/routes.d.ts";
 
-// File ini otomatis di-generate ulang oleh `next dev`/`next build` — jangan diedit manual.
-// Dibuat manual di sini supaya typecheck tetap jalan sebelum `next dev` pernah dijalankan sekali.
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.

@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
 import type { Queue } from "bullmq";
-import { CONVERT_QUEUE_NAME } from "./queue.module.js";
+import { CONVERT_QUEUE_NAME } from "./queue.constants.js";
 
 // Job payload disepakati bersama apps/worker — kalau field di sini berubah, worker juga harus ikut disesuaikan.
 export interface ConvertJobData {

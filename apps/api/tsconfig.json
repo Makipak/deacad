@@ -2,7 +2,12 @@
   "extends": "@deacad/config/typescript/nestjs.json",
   "compilerOptions": {
     "baseUrl": "./",
-    "rootDir": "src"
+    "rootDir": "src",
+    "outDir": "./dist",
+    // Taruh cache incremental di dalam outDir supaya ikut terhapus saat nest-cli.json
+    // `deleteOutDir` jalan — kalau di luar dist, cache bisa "mengira" build sudah up-to-date
+    // padahal dist barusan dikosongkan, sehingga nest start --watch tidak menulis ulang apa pun.
+    "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo"
   },
   "include": ["src"]
 }

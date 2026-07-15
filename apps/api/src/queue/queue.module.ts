@@ -1,8 +1,7 @@
 import { Module } from "@nestjs/common";
 import { BullModule } from "@nestjs/bullmq";
 import { ConvertQueueService } from "./convert-queue.service.js";
-
-export const CONVERT_QUEUE_NAME = "document-convert";
+import { CONVERT_QUEUE_NAME } from "./queue.constants.js";
 
 @Module({
   imports: [

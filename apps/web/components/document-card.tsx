@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { Document } from "@deacad/shared-types";
-import { findCategoryName } from "@/lib/mock-data";
 
 const STATUS_LABEL: Record<Document["status"], string> = {
   processing: "Sedang diproses",
@@ -10,7 +9,7 @@ const STATUS_LABEL: Record<Document["status"], string> = {
 };
 
 // Satu kartu ringkas dokumen di halaman browse — link ke halaman detail (app/documents/[id]).
-export function DocumentCard({ document }: { document: Document }) {
+export function DocumentCard({ document, categoryName }: { document: Document; categoryName: string }) {
   return (
     <Link
       href={`/documents/${document.id}`}
@@ -18,7 +17,7 @@ export function DocumentCard({ document }: { document: Document }) {
       style={{ borderColor: "var(--color-border)" }}
     >
       <div className="flex items-center justify-between text-xs" style={{ color: "var(--color-muted)" }}>
-        <span>{findCategoryName(document.categoryId)}</span>
+        <span>{categoryName}</span>
         <span className="uppercase">{document.fileType}</span>
       </div>
       <h3 className="mt-2 line-clamp-2 font-medium">{document.title}</h3>

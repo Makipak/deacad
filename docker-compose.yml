@@ -15,7 +15,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      # Host 5434 (bukan 5432) — di mesin dev tertentu port 5432 host bisa sudah dipakai
+      # instance/container Postgres project lain. 5432 di dalam container tetap dipakai
+      # oleh service lain (api/worker) lewat network internal Docker Compose (nama service
+      # "postgres", bukan port host), jadi hanya DATABASE_URL yang perlu port 5434 dari luar.
+      - "5434:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U deacad"]
       interval: 5s

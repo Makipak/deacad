@@ -1,3 +1,4 @@
+import "./load-env.js"; // wajib paling awal — muat .env sebelum modul lain baca process.env saat di-import.
 import { Worker } from "bullmq";
 import { processConvertJob } from "./convert.processor.js";
 

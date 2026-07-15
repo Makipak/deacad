@@ -26,6 +26,7 @@
     "bcrypt": "^6.0.0",
     "bullmq": "^5.79.2",
     "cookie-parser": "^1.4.7",
+    "dotenv": "^17.4.1",
     "file-type": "^20.0.1",
     "helmet": "^8.0.0",
     "midtrans-client": "^1.4.2",
@@ -35,6 +36,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@deacad/config": "workspace:*",
     "@nestjs/cli": "^11.0.10",
     "@types/bcrypt": "^5.0.2",
     "@types/cookie-parser": "^1.4.8",

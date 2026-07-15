@@ -17,7 +17,7 @@ export class DownloadAccessGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
-    const documentId = request.params.id;
+    const documentId = request.params.id as string;
     const userId = request.user?.id;
 
     if (!this.settingsService.get().downloadPaymentEnabled) return true;

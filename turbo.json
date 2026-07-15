@@ -7,6 +7,13 @@
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
     "dev": {
+      // Pastikan package tanpa build step (mis. @deacad/database, @deacad/shared-types — dist/
+      // dikonsumsi apps/api & apps/worker lewat plain node/tsx, bukan langsung dari src/) sudah
+      // ter-compile SEKALI dulu sebelum consumer-nya mulai. Tanpa ini, semua "dev" script jalan
+      // paralel dan consumer bisa mulai sebelum dist/ package upstream sempat ada sama sekali.
+      // Watch mode package upstream sendiri (script "dev": tsc --watch) tetap jalan paralel
+      // setelah gate awal ini terpenuhi, untuk rebuild otomatis kalau source-nya diedit lagi.
+      "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
     },

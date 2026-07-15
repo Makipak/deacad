@@ -99,6 +99,7 @@ model Document {
   // Full-text search — di-generate DB, isinya union title (bobot A) + description (bobot B).
   // Prisma tidak generate kolom tsvector langsung, jadi dibuat lewat migration SQL manual (lihat ARCHITECTURE.md #11).
   // Kolom ini dipetakan Unsupported supaya Prisma tahu kolomnya ada tapi tidak mencoba mengelola tipe-nya.
+  // PENTING: setiap migrasi baru wajib pakai --create-only dulu (lihat catatan drift palsu di prisma/sql/search-vector.sql).
   searchVector Unsupported("tsvector")? @map("search_vector")
 
   user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -110,6 +111,7 @@ model Document {
 
   @@index([status])
   @@index([categoryId])
+  @@index([searchVector], type: Gin, map: "documents_search_idx")
   @@map("documents")
 }
 

@@ -15,7 +15,10 @@ import { JwtAuthGuard } from "./common/guards/jwt-auth.guard.js";
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }), // .env dibaca sekali di sini, dipakai lewat process.env di seluruh app.
+    // .env root sudah dimuat lebih awal lewat "./load-env.js" (di-import paling pertama di main.ts,
+    // sebelum modul lain yang baca process.env saat di-import, mis. @deacad/database). Ini cuma
+    // mendaftarkan ConfigModule secara global untuk siapa pun yang nanti mau pakai ConfigService.
+    ConfigModule.forRoot({ isGlobal: true }),
     // Rate limit global default — endpoint sensitif override lebih ketat lewat @Throttle() (ARCHITECTURE.md #7).
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]),
     // JwtModule global (dipakai JwtAuthGuard) — register({}) supaya secret dipilih eksplisit per pemakaian.

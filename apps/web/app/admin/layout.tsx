@@ -1,4 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useAuth } from "@/lib/auth-context";
 
 const ADMIN_LINKS = [
   { href: "/admin", label: "Dashboard" },
@@ -8,9 +13,23 @@ const ADMIN_LINKS = [
   { href: "/admin/settings", label: "Settings" },
 ];
 
-// Layout khusus /admin/* — sidebar navigasi. Di production, akses ke sini digerbangi
-// RolesGuard('admin') di backend, BUKAN cuma disembunyikan di frontend (ARCHITECTURE.md #7).
+// Layout khusus /admin/* — sidebar navigasi. Redirect ke /login kalau belum login atau bukan
+// admin, supaya akses langsung lewat URL juga ke-gate, bukan cuma link navbar. Ini gate FE demi
+// UX saja — akses ke endpoint admin di backend tetap digerbangi RolesGuard('admin') sendiri
+// (ARCHITECTURE.md #7), jadi tetap aman meski frontend ini dilewati.
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const { user, status } = useAuth();
+  const router = useRouter();
+  const isAdmin = status === "authenticated" && user?.role === "admin";
+
+  useEffect(() => {
+    if (status === "unauthenticated" || (status === "authenticated" && !isAdmin)) {
+      router.replace("/login");
+    }
+  }, [status, isAdmin, router]);
+
+  if (!isAdmin) return null;
+
   return (
     <div className="grid grid-cols-1 gap-8 md:grid-cols-[180px_1fr]">
       <aside>

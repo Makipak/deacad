@@ -1,0 +1,7 @@
+-- No-op secara desain. `prisma migrate dev` tanpa --name sempat salah mendeteksi index GIN
+-- manual (documents_search_idx, dibuat di migrasi add_search_vector) sebagai drift dan
+-- men-drop-nya di database lokal; migrasi ini awalnya dipakai untuk mengembalikannya di
+-- database yang sudah terlanjur rusak itu. Di clone/shadow-db baru index itu sudah dibuat oleh
+-- add_search_vector, jadi di sini tidak perlu apa-apa lagi. schema.prisma sekarang
+-- mendeklarasikan @@index(..., type: Gin) supaya Prisma sadar index ini ada dan drift
+-- serupa tidak terulang.
