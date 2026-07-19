@@ -20,12 +20,16 @@ import { RolesGuard } from "../common/guards/roles.guard.js";
 import { CurrentUser } from "../common/decorators/current-user.decorator.js";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.js";
 import type { AuthenticatedUser } from "../common/types/authenticated-user.js";
+import { AuditLogsService } from "../audit-logs/audit-logs.service.js";
 import { DownloadAccessGuard } from "./guards/download-access.guard.js";
 import { DocumentsService } from "./documents.service.js";
 
 @Controller("documents")
 export class DocumentsController {
-  constructor(private readonly documentsService: DocumentsService) {}
+  constructor(
+    private readonly documentsService: DocumentsService,
+    private readonly auditLogsService: AuditLogsService,
+  ) {}
 
   @Public()
   @Get()
@@ -34,6 +38,13 @@ export class DocumentsController {
     const normalized = { ...rawQuery, limit: rawQuery.limit ? Number(rawQuery.limit) : undefined };
     const parsed = new ZodValidationPipe(documentSearchQuerySchema).transform(normalized);
     return this.documentsService.search(parsed);
+  }
+
+  // Wajib DEKLARASI SEBELUM @Get(":id") — dua-duanya sama-sama 1 segment path setelah "documents",
+  // kalau ":id" duluan dia bakal "menang" duluan dan "mine" ke-treat sebagai id literal "mine".
+  @Get("mine")
+  findMine(@CurrentUser() user: AuthenticatedUser) {
+    return this.documentsService.findMine(user.id);
   }
 
   @Public()
@@ -75,7 +86,14 @@ export class DocumentsController {
   @Post(":id/unpublish")
   @Roles("admin")
   @UseGuards(RolesGuard)
-  unpublish(@Param("id") id: string) {
-    return this.documentsService.unpublish(id);
+  async unpublish(@Param("id") id: string, @CurrentUser() admin: AuthenticatedUser) {
+    await this.documentsService.unpublish(id);
+
+    // Semua toggle admin wajib tercatat di audit_logs (ARCHITECTURE.md #7 & #12).
+    await this.auditLogsService.record({
+      adminId: admin.id,
+      action: "document.unpublish",
+      targetId: id,
+    });
   }
 }

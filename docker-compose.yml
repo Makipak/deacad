@@ -76,6 +76,17 @@ services:
       dockerfile: docker/worker.Dockerfile
     restart: unless-stopped
     env_file: .env
+    environment:
+      # Override host-oriented values dari .env (dipakai proses native pnpm dev) dengan
+      # nama service Docker Compose — di dalam container, "localhost" nunjuk ke dirinya
+      # sendiri, bukan ke container postgres/redis/storage.
+      DATABASE_URL: postgresql://deacad:deacad@postgres:5432/deacad?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      STORAGE_ENDPOINT: http://storage:9000
+      # URL yang disimpan ke DB & dibuka browser di host — beda dari STORAGE_ENDPOINT di atas
+      # yang cuma bisa di-resolve dari dalam jaringan Docker Compose.
+      STORAGE_PUBLIC_ENDPOINT: http://localhost:9000
     depends_on:
       redis:
         condition: service_healthy

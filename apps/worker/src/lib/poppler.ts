@@ -34,3 +34,15 @@ function extractPageNumber(filename: string): number {
   const match = filename.match(/-(\d+)\.png$/);
   return match ? Number(match[1]) : 0;
 }
+
+// Thumbnail kartu dokumen: halaman 1 saja, sisi terpanjang 320px — jauh lebih ringan dari
+// gambar halaman full-res untuk grid browse (20 kartu sekali render).
+export async function renderPdfThumbnail(pdfPath: string, outputDir: string): Promise<string> {
+  const outputPrefix = join(outputDir, "thumb");
+  await execFileAsync(
+    "pdftoppm",
+    ["-png", "-f", "1", "-l", "1", "-scale-to", "320", "-singlefile", pdfPath, outputPrefix],
+    { timeout: 60_000 },
+  );
+  return `${outputPrefix}.png`; // -singlefile menulis persis satu file tanpa suffix nomor halaman.
+}

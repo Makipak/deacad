@@ -4,7 +4,8 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import type { LoginInput, RegisterInput, User, UserRole } from "@deacad/shared-types";
 import { apiFetch } from "./api-client";
 
-type AuthUser = Pick<User, "id" | "role">;
+// name+email ikut disimpan untuk navbar (avatar inisial + header dropdown, desain Landing Browse).
+type AuthUser = Pick<User, "id" | "name" | "email" | "role">;
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -33,7 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then(({ res, me }) => {
         if (cancelled) return;
         setAccessToken(res.accessToken);
-        setUser({ id: me.id, role: me.role });
+        setUser({ id: me.id, name: me.name, email: me.email, role: me.role });
         setStatus("authenticated");
       })
       .catch(() => {
@@ -50,10 +51,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       method: "POST",
       body: input,
     });
+    // Response login cuma {id, role} (auth.service.ts) — susulkan GET /users/me untuk name+email.
+    const me = await apiFetch<User>("/users/me", { accessToken: res.accessToken });
+    const authUser: AuthUser = { id: me.id, name: me.name, email: me.email, role: me.role };
     setAccessToken(res.accessToken);
-    setUser(res.user);
+    setUser(authUser);
     setStatus("authenticated");
-    return res.user;
+    return authUser;
   }, []);
 
   const register = useCallback(

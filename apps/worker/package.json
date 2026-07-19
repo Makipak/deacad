@@ -21,6 +21,7 @@
     "@deacad/config": "workspace:*",
     "tsx": "^4.19.2",
     "typescript": "catalog:",
-    "@types/node": "catalog:"
+    "@types/node": "catalog:",
+    "eslint": "^9.18.0"
   }
 }

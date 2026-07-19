@@ -89,6 +89,9 @@ model Document {
   fileType          FileType       @map("file_type")
   originalFileUrl   String         @map("original_file_url")
   convertedPdfUrl   String?        @map("converted_pdf_url") // null selagi status masih processing.
+  // Thumbnail kecil dari halaman 1 (di-generate worker saat convert) — dipakai kartu dokumen di
+  // halaman browse/profil. Null untuk dokumen lama/belum convert; API fallback ke gambar halaman 1.
+  thumbnailUrl      String?        @map("thumbnail_url")
   status            DocumentStatus @default(processing)
   categoryId        String?        @map("category_id")
   viewCount         Int            @default(0) @map("view_count")

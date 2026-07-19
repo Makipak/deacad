@@ -148,6 +148,16 @@ export class TransactionsService {
     return null; // "pending" atau status lain yang belum final.
   }
 
+  // Riwayat transaksi user (halaman profil) — independen dari redirect Midtrans (ARCHITECTURE.md #9),
+  // termasuk transaksi pending lama yang bisa dilanjutkan bayar dari profil.
+  async listMine(userId: string) {
+    return prisma.transaction.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      include: { document: { select: { title: true } } },
+    });
+  }
+
   async listForAdmin(status?: string) {
     return prisma.transaction.findMany({
       where: status ? { status: status as never } : undefined,

@@ -2,6 +2,7 @@
   "name": "@deacad/config",
   "private": true,
   "version": "0.1.0",
+  "type": "module",
   "description": "Konfigurasi eslint & tsconfig yang dipakai bersama semua app/package",
   "exports": {
     "./eslint/base": "./eslint/base.js",
@@ -14,6 +15,7 @@
   "devDependencies": {
     "eslint": "^9.18.0",
     "typescript-eslint": "^8.20.0",
-    "eslint-config-next": "16.2.10"
+    "eslint-config-next": "16.2.10",
+    "@eslint/js": "^9.18.0"
   }
 }

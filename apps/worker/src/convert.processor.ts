@@ -4,8 +4,13 @@ import { join } from "node:path";
 import type { Job } from "bullmq";
 import { prisma } from "@deacad/database";
 import { convertPptxToPdf } from "./lib/libreoffice.js";
-import { convertPdfToImages } from "./lib/poppler.js";
-import { downloadOriginal, uploadConvertedPdf, uploadPageImage } from "./lib/storage.js";
+import { convertPdfToImages, renderPdfThumbnail } from "./lib/poppler.js";
+import {
+  downloadOriginal,
+  uploadConvertedPdf,
+  uploadPageImage,
+  uploadThumbnail,
+} from "./lib/storage.js";
 
 // Harus sinkron dengan ConvertJobData di apps/api/src/queue/convert-queue.service.ts.
 export interface ConvertJobData {
@@ -43,6 +48,12 @@ export async function processConvertJob(job: Job<ConvertJobData>): Promise<void>
       imagePaths.map((imagePath) => uploadPageImage(imagePath, documentId)),
     );
 
+    // Thumbnail kartu dokumen: halaman 1 versi 320px (sampul di halaman browse/profil).
+    // Satu pipeline dengan convert halaman — kalau pdftoppm sanggup render halaman penuh,
+    // render thumbnail juga pasti bisa, jadi tidak perlu jalur error terpisah.
+    const thumbnailPath = await renderPdfThumbnail(pdfPath, workDir);
+    const thumbnailUrl = await uploadThumbnail(thumbnailPath, documentId);
+
     // Transaction: hapus page lama (kalau ini re-convert) lalu insert page baru + update status —
     // biar tidak ada state "setengah jadi" kalau proses ini sendiri gagal di tengah jalan.
     await prisma.$transaction([
@@ -57,7 +68,7 @@ export async function processConvertJob(job: Job<ConvertJobData>): Promise<void>
       }),
       prisma.document.update({
         where: { id: documentId },
-        data: { status: "ready", convertedPdfUrl },
+        data: { status: "ready", convertedPdfUrl, thumbnailUrl },
       }),
     ]);
   } catch (error) {

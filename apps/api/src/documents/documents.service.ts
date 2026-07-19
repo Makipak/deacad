@@ -4,6 +4,7 @@ import type { DocumentSearchQuery, UploadDocumentInput } from "@deacad/shared-ty
 import { FileValidationService } from "../file-validation/file-validation.service.js";
 import { StorageService } from "../common/storage/storage.service.js";
 import { ConvertQueueService } from "../queue/convert-queue.service.js";
+import { SettingsService } from "../settings/settings.service.js";
 
 @Injectable()
 export class DocumentsService {
@@ -11,6 +12,7 @@ export class DocumentsService {
     private readonly fileValidationService: FileValidationService,
     private readonly storageService: StorageService,
     private readonly convertQueueService: ConvertQueueService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   async upload(userId: string, input: UploadDocumentInput, file: Express.Multer.File) {
@@ -34,13 +36,16 @@ export class DocumentsService {
       },
     });
 
-    // Auto-publish begitu convert selesai (hybrid moderation, ARCHITECTURE.md #6) —
-    // enqueue job convert, job ini yang nanti ubah status jadi "ready" lewat worker.
-    await this.convertQueueService.enqueue({
-      documentId: document.id,
-      originalFileUrl,
-      fileType,
-    });
+    // Kalau upload berbayar, convert job SENGAJA tidak di-enqueue di sini — baru di-enqueue oleh
+    // TransactionsService.syncStatus() setelah pembayaran Midtrans sukses (ARCHITECTURE.md #5).
+    // Tanpa gate ini dokumen tetap ke-convert & published walau belum dibayar.
+    if (!this.settingsService.get().uploadPaymentEnabled) {
+      await this.convertQueueService.enqueue({
+        documentId: document.id,
+        originalFileUrl,
+        fileType,
+      });
+    }
 
     return document;
   }
@@ -72,11 +77,19 @@ export class DocumentsService {
       orderBy,
       take: query.limit,
       ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
-      include: { category: true },
+      include: {
+        category: true,
+        // Fallback sampul: dokumen yang di-convert sebelum kolom thumbnail_url ada belum punya
+        // thumbnail kecil — pakai gambar halaman 1 full-res sebagai gantinya (di-coalesce di bawah).
+        pages: { orderBy: { pageNumber: "asc" as const }, take: 1, select: { imageUrl: true } },
+      },
     });
 
     return {
-      items: documents,
+      items: documents.map(({ pages, ...document }) => ({
+        ...document,
+        thumbnailUrl: document.thumbnailUrl ?? pages[0]?.imageUrl ?? null,
+      })),
       nextCursor: documents.length === query.limit ? documents[documents.length - 1]!.id : null,
     };
   }
@@ -114,6 +127,21 @@ export class DocumentsService {
     const document = await prisma.document.findUnique({ where: { id } });
     if (!document) throw new NotFoundException("Dokumen tidak ditemukan");
     await prisma.document.update({ where: { id }, data: { status: "rejected" } });
+  }
+
+  // Dipakai halaman profil user — semua dokumen milik sendiri, termasuk yang belum "ready"
+  // (mis. masih "processing" menunggu pembayaran upload), bukan cuma yang sudah publik lewat search().
+  async findMine(userId: string) {
+    const documents = await prisma.document.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      // Fallback sampul yang sama dengan search() — dokumen processing belum punya halaman, tetap null.
+      include: { pages: { orderBy: { pageNumber: "asc" as const }, take: 1, select: { imageUrl: true } } },
+    });
+    return documents.map(({ pages, ...document }) => ({
+      ...document,
+      thumbnailUrl: document.thumbnailUrl ?? pages[0]?.imageUrl ?? null,
+    }));
   }
 
   async listForAdmin(status?: string) {

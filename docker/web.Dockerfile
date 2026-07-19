@@ -4,7 +4,7 @@ RUN corepack enable && corepack prepare pnpm@11.9.0 --activate
 WORKDIR /repo
 
 FROM base AS deps
-COPY pnpm-workspace.yaml package.json ./
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared-types/package.json packages/shared-types/package.json
 COPY packages/config/package.json packages/config/package.json
@@ -13,7 +13,7 @@ RUN pnpm install --frozen-lockfile
 FROM deps AS build
 COPY . .
 # Turbopack (default builder Next.js 16) — tidak perlu flag tambahan untuk production build.
-RUN pnpm --filter web build
+RUN pnpm exec turbo run build --filter=web
 
 FROM base AS runtime
 ENV NODE_ENV=production
@@ -22,5 +22,6 @@ COPY --from=build /repo/apps/web/.next ./.next
 COPY --from=build /repo/apps/web/public ./public
 COPY --from=build /repo/apps/web/package.json ./package.json
 COPY --from=build /repo/node_modules /repo/node_modules
+COPY --from=build /repo/apps/web/node_modules ./node_modules
 EXPOSE 3000
 CMD ["pnpm", "start"]

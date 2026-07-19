@@ -27,6 +27,7 @@ export class AuditLogsService {
     return prisma.auditLog.findMany({
       where: { targetId },
       orderBy: { createdAt: "desc" },
+      include: { admin: { select: { name: true } } }, // nama admin tampil di timeline riwayat settings.
     });
   }
 

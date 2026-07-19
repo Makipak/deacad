@@ -20,6 +20,13 @@ export class TransactionsController {
     return this.transactionsService.create(user.id, body);
   }
 
+  // Riwayat transaksi milik user sendiri (tab "Riwayat Transaksi" halaman profil).
+  // Query di-scope userId langsung di service — pola IDOR ARCHITECTURE.md #7.
+  @Get("mine")
+  listMine(@CurrentUser() user: AuthenticatedUser) {
+    return this.transactionsService.listMine(user.id);
+  }
+
   @Get("admin/all")
   @Roles("admin")
   @UseGuards(RolesGuard)

@@ -1,4 +1,7 @@
+import Link from "next/link";
 import { DocumentCard } from "@/components/document-card";
+import { Hero } from "@/components/hero";
+import { BrowseFilters } from "@/components/browse-filters";
 import type { Category, Document } from "@deacad/shared-types";
 
 // Next.js 16: searchParams sekarang WAJIB async (bukan lagi object langsung) — harus di-await.
@@ -15,11 +18,12 @@ const API_BASE = `${process.env.NEXT_PUBLIC_API_URL}/api/v1`;
 // sesuai alasan pemilihan Next.js untuk SEO halaman publik di ARCHITECTURE.md #2.
 export default async function BrowsePage({ searchParams }: { searchParams: SearchParams }) {
   const { q, category, sort } = await searchParams;
+  const activeSort = sort === "terpopuler" ? "terpopuler" : "terbaru";
 
   const query = new URLSearchParams();
   if (q) query.set("q", q);
   if (category) query.set("categoryId", category);
-  query.set("sort", sort === "terpopuler" ? "terpopuler" : "terbaru");
+  query.set("sort", activeSort);
 
   const [documentsRes, categories] = await Promise.all([
     fetch(`${API_BASE}/documents?${query.toString()}`, { cache: "no-store" })
@@ -35,59 +39,35 @@ export default async function BrowsePage({ searchParams }: { searchParams: Searc
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold">Jelajah Dokumen</h1>
-      <p className="mt-1 text-sm" style={{ color: "var(--color-muted)" }}>
-        Skripsi, tesis, makalah, laporan praktikum, presentasi, dan jurnal dari mahasiswa lain.
-      </p>
+      <Hero />
 
-      <form className="mt-6 flex flex-wrap gap-3" action="/">
-        <input
-          type="text"
-          name="q"
-          defaultValue={q}
-          placeholder="Cari judul dokumen..."
-          className="flex-1 rounded-md border px-3 py-2 text-sm"
-          style={{ borderColor: "var(--color-border)", minWidth: "200px" }}
-        />
-        <select
-          name="category"
-          defaultValue={category ?? ""}
-          className="rounded-md border px-3 py-2 text-sm"
-          style={{ borderColor: "var(--color-border)" }}
-        >
-          <option value="">Semua kategori</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.name}
-            </option>
-          ))}
-        </select>
-        <select
-          name="sort"
-          defaultValue={sort ?? "terbaru"}
-          className="rounded-md border px-3 py-2 text-sm"
-          style={{ borderColor: "var(--color-border)" }}
-        >
-          <option value="terbaru">Terbaru</option>
-          <option value="terpopuler">Terpopuler</option>
-        </select>
-        <button
-          type="submit"
-          className="rounded-md px-4 py-2 text-sm text-white"
-          style={{ background: "var(--color-primary)" }}
-        >
-          Cari
-        </button>
-      </form>
+      <BrowseFilters
+        categories={categories}
+        q={q}
+        activeCategoryId={category ?? ""}
+        sort={activeSort}
+        resultCount={documentsRes.items.length}
+      />
 
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {documentsRes.items.map((doc) => (
-          <DocumentCard key={doc.id} document={doc} categoryName={categoryName(doc.categoryId)} />
-        ))}
-        {documentsRes.items.length === 0 && (
-          <p className="col-span-full text-sm" style={{ color: "var(--color-muted)" }}>
-            Tidak ada dokumen yang cocok dengan pencarian.
-          </p>
+      <div className="mx-auto max-w-7xl px-4 pb-16 pt-6 sm:px-6 lg:px-8">
+        {documentsRes.items.length > 0 ? (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {documentsRes.items.map((doc) => (
+              <DocumentCard key={doc.id} document={doc} categoryName={categoryName(doc.categoryId)} />
+            ))}
+          </div>
+        ) : (
+          <div className="px-5 py-16 text-center text-muted">
+            <div aria-hidden className="mx-auto mb-4 h-16 w-16 rounded-full border-2 border-line" />
+            <p className="mb-1.5 text-[16px] font-semibold text-fg">Tidak ada dokumen ditemukan</p>
+            <p className="text-[14px]">
+              Coba kata kunci lain, atau{" "}
+              <Link href="/" className="text-primary underline">
+                reset filter
+              </Link>
+              .
+            </p>
+          </div>
         )}
       </div>
     </div>

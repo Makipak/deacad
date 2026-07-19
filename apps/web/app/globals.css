@@ -1,21 +1,260 @@
 /* Tailwind v4 — satu baris import, tidak perlu lagi @tailwind base/components/utilities terpisah. */
 @import "tailwindcss";
 
-/* Token warna minimal — UI sengaja dibuat sederhana dulu, prioritas demo jalan (bukan polish visual). */
+/* Dark mode pakai class .dark di <html> (di-set inline script di layout.tsx sebelum paint),
+   bukan media query — sesuai PRD §4.2: preferensi tersimpan per user, bukan cuma ikut OS. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Token warna dari desain claude.ai/design "Design dari PRD" (identik di semua screen).
+   Light = default, .dark menimpa nilai raw-nya sehingga semua utility ikut berubah otomatis. */
 :root {
-  --color-bg: #ffffff;
-  --color-fg: #171717;
-  --color-muted: #6b7280;
-  --color-border: #e5e7eb;
-  --color-primary: #2563eb;
+  --bg: #faf8f5;
+  --bg-elevated: #ffffff;
+  --fg: #1c1917;
+  --fg-muted: #6b6259;
+  --border: #e7e1d9;
+  --border-strong: #d4cbbe;
+  --primary: #7a1f2b;
+  --primary-hover: #611723;
+  --primary-subtle: #f5e6e4;
+  /* Teks di atas warna primary — desain pakai #FAF8F5; di dark mode primary jadi pink terang,
+     jadi teksnya harus gelap supaya tetap lolos kontras WCAG AA (PRD §8). */
+  --primary-fg: #faf8f5;
+  --accent: #1e3a5f;
+  --success: #2f6b3a;
+  --success-subtle: #e3f0e4;
+  --warning: #9a6a16;
+  --warning-subtle: #fbefd9;
+  --danger: #b23a3a;
+  --danger-subtle: #f7e2e1;
+  --focus-ring: rgba(122, 31, 43, 0.4);
+  --shadow-card: 0 2px 8px rgba(28, 25, 23, 0.06);
+  --shadow-hover: 0 8px 24px rgba(28, 25, 23, 0.12);
+  --shadow-modal: 0 16px 48px rgba(28, 25, 23, 0.18);
+}
+
+.dark {
+  --bg: #161311;
+  --bg-elevated: #1f1b18;
+  --fg: #f2eee8;
+  --fg-muted: #a79e92;
+  --border: #332c26;
+  --border-strong: #4a4038;
+  --primary: #e0838f;
+  --primary-hover: #ec9ca6;
+  --primary-subtle: #3a1e22;
+  --primary-fg: #2a1114;
+  --accent: #7fa3c9;
+  --success: #6fbf7c;
+  --success-subtle: #1e2f20;
+  --warning: #d9ae63;
+  --warning-subtle: #3a2e16;
+  --danger: #e08c88;
+  --danger-subtle: #3a2220;
+  --focus-ring: rgba(224, 131, 143, 0.4);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-modal: 0 16px 48px rgba(0, 0, 0, 0.6);
+}
+
+/* Map token runtime ke utility Tailwind (bg-surface, text-muted, border-line, dst.).
+   "inline" wajib supaya utility memakai var() runtime — nilai ikut flip saat .dark aktif. */
+@theme inline {
+  --color-surface: var(--bg);
+  --color-elevated: var(--bg-elevated);
+  --color-fg: var(--fg);
+  --color-muted: var(--fg-muted);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-subtle: var(--primary-subtle);
+  --color-primary-fg: var(--primary-fg);
+  --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-success-subtle: var(--success-subtle);
+  --color-warning: var(--warning);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-danger: var(--danger);
+  --color-danger-subtle: var(--danger-subtle);
+
+  --font-sans: var(--font-inter), "Inter", system-ui, sans-serif;
+  --font-serif: var(--font-source-serif), "Source Serif 4", Georgia, serif;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  --shadow-card: var(--shadow-card);
+  --shadow-hover: var(--shadow-hover);
+  --shadow-modal: var(--shadow-modal);
 }
 
 body {
-  background: var(--color-bg);
-  color: var(--color-fg);
-  font-family:
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-inter), "Inter", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  transition:
+    background 180ms ease,
+    color 180ms ease;
+}
+
+/* Focus ring keyboard konsisten di semua interactive element (PRD §8). */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+  border-color: var(--primary);
+}
+
+@layer components {
+  /* Varian tombol dari PRD §5 — primary/secondary/ghost/danger, semua state terdefinisi.
+     Tailwind v4: @apply tidak bisa merujuk class custom, jadi base style dibagikan lewat
+     selector grouping (bukan `@apply btn`). */
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost,
+  .btn-danger {
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-sm px-4 text-[15px] font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-60;
+    height: 40px;
+  }
+  .btn-primary {
+    @apply bg-primary font-semibold text-primary-fg hover:bg-primary-hover;
+  }
+  .btn-secondary {
+    @apply border border-line bg-elevated text-fg hover:border-line-strong;
+  }
+  .btn-ghost {
+    @apply text-muted hover:text-fg;
+  }
+  .btn-danger {
+    @apply bg-danger font-semibold text-primary-fg hover:opacity-90;
+  }
+  .btn-lg {
+    height: 52px;
+    @apply rounded-md px-6 text-[16px];
+  }
+  .btn-sm {
+    height: 32px;
+    @apply px-3 text-[13px];
+  }
+
+  .input,
+  .input-textarea {
+    @apply w-full rounded-sm border border-line bg-elevated px-3.5 text-[15px] text-fg placeholder:text-muted;
+    height: 40px;
+    transition:
+      border-color 150ms ease,
+      box-shadow 150ms ease;
+  }
+  .input-textarea {
+    @apply h-auto py-2.5;
+  }
+
+  .field-label {
+    @apply mb-1.5 block text-[14px] font-medium text-fg;
+  }
+  .field-error {
+    @apply mt-1.5 text-[13px] text-danger;
+  }
+
+  .card {
+    @apply rounded-md border border-line bg-elevated;
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Badge status pill kecil — dipakai konsisten di card, detail, dan tabel admin (PRD §5). */
+  .badge,
+  .badge-success,
+  .badge-warning,
+  .badge-danger,
+  .badge-neutral,
+  .badge-primary {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[12px] font-semibold;
+  }
+  .badge-success {
+    @apply bg-success-subtle text-success;
+  }
+  .badge-warning {
+    @apply bg-warning-subtle text-warning;
+  }
+  .badge-danger {
+    @apply bg-danger-subtle text-danger;
+  }
+  .badge-neutral {
+    @apply border border-line bg-elevated text-muted;
+  }
+  .badge-primary {
+    @apply bg-primary-subtle text-primary;
+  }
+
+  /* Tabel admin standar (PRD §7.7) — header sticky, row hover. */
+  .admin-table {
+    @apply w-full border-collapse text-left text-[14px];
+  }
+  .admin-table th {
+    @apply sticky top-0 z-10 border-b border-line bg-surface px-3 py-2.5 text-[13px] font-semibold text-muted;
+  }
+  .admin-table td {
+    @apply border-b border-line px-3 py-3 align-middle;
+  }
+  .admin-table tbody tr {
+    @apply transition-colors hover:bg-elevated;
+  }
+
+  /* Skeleton shimmer untuk loading state (PRD §9). */
+  .skeleton {
+    @apply rounded-sm;
+    background: linear-gradient(90deg, var(--border) 25%, var(--bg-elevated) 50%, var(--border) 75%);
+    background-size: 400px 100%;
+    animation: shimmer 1.4s ease infinite;
+  }
+
+  /* Pola "sampul dokumen" bergaris diagonal dari desain document card. */
+  .doc-cover {
+    background: repeating-linear-gradient(
+      135deg,
+      var(--bg),
+      var(--bg) 10px,
+      var(--border) 10px,
+      var(--border) 11px
+    );
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+/* Fade-in halus untuk modal/overlay (PRD §9: 200–250ms buka modal). */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-in {
+  animation: fade-in 200ms ease-out;
+}
+.animate-slide-up {
+  animation: slide-up 240ms ease-out;
 }

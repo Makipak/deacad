@@ -24,6 +24,15 @@ export class SettingsController {
     return this.settingsService.get();
   }
 
+  // Timeline "Riwayat Perubahan" di panel settings admin (PRD §7.10) — baca audit_logs
+  // target "monetization" yang dicatat updateSettings() di bawah.
+  @Get("history")
+  @Roles("admin")
+  @UseGuards(RolesGuard)
+  history() {
+    return this.auditLogsService.listByTarget("monetization");
+  }
+
   @Patch()
   @Roles("admin")
   @UseGuards(RolesGuard)

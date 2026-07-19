@@ -34,6 +34,9 @@ export const documentSchema = z.object({
   viewCount: z.int().nonnegative(),
   downloadCount: z.int().nonnegative(),
   createdAt: z.iso.datetime(),
+  // Sampul kartu dokumen: thumbnail kecil halaman 1 dari worker, atau fallback gambar halaman 1
+  // penuh yang di-coalesce API untuk dokumen lama (documents.service.ts). Null selama processing.
+  thumbnailUrl: z.url().nullable(),
   pages: z.array(documentPageSchema).optional(), // hanya di-include di endpoint detail, bukan list.
 });
 export type Document = z.infer<typeof documentSchema>;
