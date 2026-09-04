@@ -85,8 +85,12 @@ services:
       REDIS_PORT: 6379
       STORAGE_ENDPOINT: http://storage:9000
       # URL yang disimpan ke DB & dibuka browser di host — beda dari STORAGE_ENDPOINT di atas
-      # yang cuma bisa di-resolve dari dalam jaringan Docker Compose.
-      STORAGE_PUBLIC_ENDPOINT: http://localhost:9000
+      # yang cuma bisa di-resolve dari dalam jaringan Docker Compose. ${STORAGE_PUBLIC_ENDPOINT:-...}
+      # dibaca Compose dari .env di root repo (variable substitution, terpisah dari env_file: .env
+      # di atas) — kalau di-set (mis. demo ngrok, lihat docker/nginx/nginx.ngrok.conf) itu yang
+      # dipakai; kalau kosong/unset, fallback ke localhost:9000 seperti semula untuk docker-compose
+      # biasa (browser host akses port MinIO yang di-publish langsung).
+      STORAGE_PUBLIC_ENDPOINT: ${STORAGE_PUBLIC_ENDPOINT:-http://localhost:9000}
     depends_on:
       redis:
         condition: service_healthy

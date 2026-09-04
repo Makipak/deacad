@@ -16,7 +16,8 @@ const bucket = process.env.STORAGE_BUCKET ?? "deacad";
 // STORAGE_ENDPOINT dipakai client S3 buat konek (bisa hostname internal Docker, mis. "storage:9000").
 // STORAGE_PUBLIC_ENDPOINT dipakai buat URL yang disimpan ke DB & dibuka browser — kalau worker jalan
 // di container terpisah dari browser (mis. lewat docker-compose di dev), dua alamat ini beda.
-const publicEndpoint = process.env.STORAGE_PUBLIC_ENDPOINT ?? process.env.STORAGE_ENDPOINT;
+// Pakai || (bukan ??) — nilai "" di .env harus ikut fallback ke STORAGE_ENDPOINT.
+const publicEndpoint = process.env.STORAGE_PUBLIC_ENDPOINT || process.env.STORAGE_ENDPOINT;
 
 export async function downloadOriginal(fileUrl: string, destPath: string): Promise<void> {
   // fileUrl hasil StorageService.upload() berbentuk "{endpoint}/{bucket}/{key}" — ambil key-nya saja.

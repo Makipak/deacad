@@ -22,6 +22,14 @@ export class StorageService {
 
   private readonly bucket = process.env.STORAGE_BUCKET ?? "deacad";
 
+  // STORAGE_ENDPOINT dipakai buat konek ke MinIO; STORAGE_PUBLIC_ENDPOINT dipakai buat URL yang
+  // disimpan ke DB & dibuka browser — dua alamat ini beda saat MinIO tidak terekspos langsung ke
+  // pengunjung (mis. demo lewat ngrok/nginx, atau api jalan di container). Pola yang sama sudah
+  // dipakai apps/worker/src/lib/storage.ts.
+  // Pakai || (bukan ??) — nilai "" di .env harus ikut fallback ke STORAGE_ENDPOINT,
+  // pola yang sama dengan gotcha EMAIL_PROVIDER_API_KEY di CLAUDE.md.
+  private readonly publicEndpoint = process.env.STORAGE_PUBLIC_ENDPOINT || process.env.STORAGE_ENDPOINT;
+
   async upload(buffer: Buffer, originalName: string, contentType: string): Promise<string> {
     // Nama file di-generate ulang pakai UUID — TIDAK PERNAH pakai nama asli dari user,
     // supaya path traversal / nama file berbahaya tidak bisa menembus storage (ARCHITECTURE.md #7).
@@ -35,6 +43,6 @@ export class StorageService {
     };
     await this.client.send(new PutObjectCommand(params));
 
-    return `${process.env.STORAGE_ENDPOINT}/${this.bucket}/${key}`;
+    return `${this.publicEndpoint}/${this.bucket}/${key}`;
   }
 }
