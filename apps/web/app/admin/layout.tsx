@@ -9,6 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 const ADMIN_LINKS = [
   { href: "/admin", label: "Dashboard", title: "Dashboard" },
   { href: "/admin/reports", label: "Laporan", title: "Antrian Moderasi Laporan" },
+  { href: "/admin/users", label: "Pengguna", title: "Manajemen Pengguna" },
   { href: "/admin/documents", label: "Dokumen", title: "Manajemen Dokumen" },
   { href: "/admin/transactions", label: "Transaksi", title: "Manajemen Transaksi" },
   { href: "/admin/settings", label: "Pengaturan", title: "Pengaturan Monetisasi" },
@@ -19,7 +20,7 @@ const ADMIN_LINKS = [
 // supaya akses langsung lewat URL juga ke-gate, bukan cuma link navbar. Ini gate FE demi UX saja —
 // akses endpoint admin di backend tetap digerbangi RolesGuard('admin') sendiri (ARCHITECTURE.md #7).
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, status } = useAuth();
+  const { user, status, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const isAdmin = status === "authenticated" && user?.role === "admin";
@@ -29,6 +30,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       router.replace("/login");
     }
   }, [status, isAdmin, router]);
+
+  async function handleLogout() {
+    await logout();
+    router.replace("/login");
+  }
 
   if (!isAdmin) return null;
 
@@ -54,9 +60,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
         ))}
         <div className="flex-1" />
-        <Link href="/" className="px-3 py-2.5 text-[13px] text-muted transition-colors hover:text-fg">
-          ← Kembali ke Situs
-        </Link>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="cursor-pointer rounded-sm px-3 py-2.5 text-left text-[14px] font-medium text-danger transition-colors hover:bg-surface"
+        >
+          Keluar
+        </button>
       </aside>
 
       <div className="min-w-0 flex-1">
@@ -64,6 +74,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <h1 className="font-serif text-[19px] font-semibold">{pageTitle}</h1>
           <div className="flex-1" />
           <ThemeToggle />
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="cursor-pointer rounded-sm px-3 py-1.5 text-[13px] font-medium text-danger transition-colors hover:bg-surface md:hidden"
+          >
+            Keluar
+          </button>
         </header>
 
         {/* Navigasi fallback layar kecil — admin dirancang desktop-first (PRD §8) tapi tidak boleh rusak. */}

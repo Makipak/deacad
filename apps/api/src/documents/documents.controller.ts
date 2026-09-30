@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -34,8 +35,12 @@ export class DocumentsController {
   @Public()
   @Get()
   search(@Query() rawQuery: Record<string, string>) {
-    // Query string selalu string — coerce field angka dulu sebelum divalidasi Zod (limit tidak auto-parse dari "20").
-    const normalized = { ...rawQuery, limit: rawQuery.limit ? Number(rawQuery.limit) : undefined };
+    // Query string selalu string — coerce field angka dulu sebelum divalidasi Zod (limit/page tidak auto-parse dari "20").
+    const normalized = {
+      ...rawQuery,
+      limit: rawQuery.limit ? Number(rawQuery.limit) : undefined,
+      page: rawQuery.page ? Number(rawQuery.page) : undefined,
+    };
     const parsed = new ZodValidationPipe(documentSearchQuerySchema).transform(normalized);
     return this.documentsService.search(parsed);
   }
@@ -81,6 +86,22 @@ export class DocumentsController {
   @UseGuards(RolesGuard)
   listForAdmin(@Query("status") status?: string) {
     return this.documentsService.listForAdmin(status);
+  }
+
+  // Hapus permanen — admin only, tercatat di audit_logs lengkap dengan snapshot dokumen yang dihapus.
+  @Delete(":id")
+  @Roles("admin")
+  @UseGuards(RolesGuard)
+  async remove(@Param("id") id: string, @CurrentUser() admin: AuthenticatedUser) {
+    const deleted = await this.documentsService.deleteByAdmin(id);
+
+    await this.auditLogsService.record({
+      adminId: admin.id,
+      action: "document.delete",
+      targetId: id,
+      oldValue: deleted,
+    });
+    return { id };
   }
 
   @Post(":id/unpublish")

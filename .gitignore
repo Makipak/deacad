@@ -29,3 +29,42 @@ packages/database/src/generated/
 
 # Cache incremental TypeScript (tsc --incremental) — regenerate otomatis, bukan source.
 *.tsbuildinfo
+
+# --- Tambahan ---
+
+# Semua varian file env berisi secret (mis. .env.production, .env.staging) —
+# hanya .env.example (template tanpa nilai asli) yang boleh masuk repo.
+.env.*
+!.env.example
+
+# Kunci & sertifikat — jangan pernah commit.
+*.pem
+*.key
+*.p12
+*.pfx
+
+# pnpm/npm/yarn: store lokal & log debug.
+.pnpm-store/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test coverage & tooling deploy lokal.
+coverage/
+.vercel/
+
+# Setting pribadi Claude Code (bukan bagian repo; CLAUDE.md tetap di-commit).
+.claude/settings.local.json
+
+# File sampah OS & editor (Windows, JetBrains).
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.idea/
+
+# Folder scratch & dump database lokal.
+tmp/
+*.dump
+*.sql.gz

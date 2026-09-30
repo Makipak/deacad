@@ -34,7 +34,15 @@ export class ReconciliationCron {
         );
       } catch (error) {
         // Satu transaksi gagal di-cek tidak boleh menghentikan reconciliation transaksi lain.
-        this.logger.error(`Reconciliation gagal untuk ${transaction.midtransOrderId}`, error as Error);
+        // Sengaja hanya log ringkas: objek error midtrans-client membawa seluruh request/response HTTP
+        // (ribuan baris) dan membanjiri terminal tiap 5 menit.
+        const httpStatus = (error as { httpStatusCode?: string | number }).httpStatusCode;
+        if (Number(httpStatus) === 404) continue; // order belum pernah dibuka/dibayar di Midtrans — tetap pending.
+        const detail = httpStatus ? `HTTP ${httpStatus}` : (error as Error).message;
+        this.logger.error(
+          `Reconciliation gagal untuk ${transaction.midtransOrderId}: ${detail}` +
+            (Number(httpStatus) === 401 ? " (cek MIDTRANS_SERVER_KEY di .env)" : ""),
+        );
       }
     }
   }

@@ -19,6 +19,7 @@ export default function AdminTransactionsPage() {
   const { accessToken, status } = useAuth();
   const [transactions, setTransactions] = useState<AdminTransactionRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"semua" | TransactionStatus>("semua");
@@ -47,9 +48,14 @@ export default function AdminTransactionsPage() {
 
   async function handleRecheck(id: string) {
     setError(null);
+    setNotice(null);
     setBusyId(id);
     try {
-      await apiFetch(`/transactions/${id}/recheck`, { method: "POST", accessToken });
+      const res = await apiFetch<{ message: string }>(`/transactions/${id}/recheck`, {
+        method: "POST",
+        accessToken,
+      });
+      setNotice(res.message);
       const refreshed = await apiFetch<AdminTransactionRow[]>("/transactions/admin/all", { accessToken });
       setTransactions(refreshed);
     } catch (err) {
@@ -65,6 +71,10 @@ export default function AdminTransactionsPage() {
         <p className="mb-5 rounded-sm border border-danger bg-danger-subtle px-3 py-2 text-[14px] text-danger">
           {error}
         </p>
+      )}
+
+      {notice && (
+        <p className="mb-5 rounded-sm border border-line bg-elevated px-3 py-2 text-[14px] text-muted">{notice}</p>
       )}
 
       <div className="mb-4.5 flex flex-wrap gap-2.5">

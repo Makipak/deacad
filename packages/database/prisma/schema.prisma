@@ -58,6 +58,18 @@ model User {
   passwordHash  String   @map("password_hash") // hash bcrypt, tidak pernah keluar lewat API response.
   role          UserRole @default(user)
   emailVerified Boolean  @default(false) @map("email_verified")
+
+  // Data diri akademik — diisi lewat halaman "Lengkapi Data Diri" setelah registrasi. Nullable di DB
+  // supaya akun lama tetap valid; kelengkapan dicek di app (semua field harus terisi).
+  university   String? @map("university")
+  studyProgram String? @map("study_program")
+  studentId    String? @map("student_id") // NIM/NIDN
+  phone        String? @map("phone")
+
+  // Moderasi akun — null = aktif. Diisi admin lewat POST /users/:id/ban (alasan wajib, tercatat juga di audit_logs).
+  bannedAt  DateTime? @map("banned_at")
+  banReason String?   @map("ban_reason")
+
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 

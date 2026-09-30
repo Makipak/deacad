@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { PasswordInput } from "@/components/password-input";
 import { ApiError } from "@/lib/api-client";
 
 const EMAIL_PATTERN = /\S+@\S+\.\S+/;
@@ -73,10 +74,9 @@ export default function LoginPage() {
             <label className="field-label" htmlFor="login-password">
               Kata Sandi
             </label>
-            <input
+            <PasswordInput
               id="login-password"
               required
-              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Kata sandi akun kamu"

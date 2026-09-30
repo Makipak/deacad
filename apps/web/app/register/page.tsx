@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { PasswordInput } from "@/components/password-input";
 import { ApiError } from "@/lib/api-client";
 
 const EMAIL_PATTERN = /\S+@\S+\.\S+/;
@@ -11,7 +12,8 @@ const EMAIL_PATTERN = /\S+@\S+\.\S+/;
 // Form registrasi — field mengikuti registerInputSchema di @deacad/shared-types.
 // Backend cuma kirim email verifikasi (belum langsung login, ARCHITECTURE.md #8), tapi login
 // sendiri tidak mengecek emailVerified — AuthProvider.register() susulkan login otomatis, lalu
-// halaman ini menampilkan state "Cek Email Kamu" (desain Login Register) sebelum lanjut ke beranda.
+// halaman ini menampilkan state "Cek Email Kamu" (desain Login Register), lalu user wajib mengisi
+// data diri di /lengkapi-profil sebelum bisa ke beranda.
 export default function RegisterPage() {
   const { register } = useAuth();
   const router = useRouter();
@@ -43,8 +45,12 @@ export default function RegisterPage() {
             Kami sudah kirim tautan verifikasi ke <strong className="text-fg">{email}</strong>. Akun
             kamu sudah bisa dipakai, tapi verifikasi email membantu mengamankan akses transaksi.
           </p>
-          <button type="button" onClick={() => router.push("/")} className="btn-primary h-12 w-full rounded-md">
-            Lanjut ke Beranda
+          <button
+            type="button"
+            onClick={() => router.push("/lengkapi-profil")}
+            className="btn-primary h-12 w-full rounded-md"
+          >
+            Lanjut Lengkapi Data Diri
           </button>
         </div>
       </div>
@@ -121,11 +127,10 @@ export default function RegisterPage() {
             <label className="field-label" htmlFor="register-password">
               Kata Sandi
             </label>
-            <input
+            <PasswordInput
               id="register-password"
               required
               minLength={8}
-              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Minimal 8 karakter"
@@ -136,10 +141,9 @@ export default function RegisterPage() {
             <label className="field-label" htmlFor="register-confirm">
               Konfirmasi Kata Sandi
             </label>
-            <input
+            <PasswordInput
               id="register-confirm"
               required
-              type="password"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               onBlur={() => setConfirmTouched(true)}

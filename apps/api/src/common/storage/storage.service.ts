@@ -3,6 +3,7 @@ import { Injectable } from "@nestjs/common";
 import {
   S3Client,
   PutObjectCommand,
+  DeleteObjectsCommand,
   type PutObjectCommandInput,
 } from "@aws-sdk/client-s3";
 import { extname } from "node:path";
@@ -44,5 +45,23 @@ export class StorageService {
     await this.client.send(new PutObjectCommand(params));
 
     return `${this.publicEndpoint}/${this.bucket}/${key}`;
+  }
+
+  // Hapus objek berdasarkan URL publik yang tersimpan di DB. Hanya URL di bawah bucket ini yang
+  // disentuh (URL lain diabaikan) — jadi nilai aneh di kolom DB tidak bisa dipakai menghapus objek sembarangan.
+  async deleteByUrls(urls: Array<string | null | undefined>): Promise<void> {
+    const prefix = `${this.publicEndpoint}/${this.bucket}/`;
+    const keys = [
+      ...new Set(urls.filter((u): u is string => !!u && u.startsWith(prefix)).map((u) => u.slice(prefix.length))),
+    ];
+    // DeleteObjects maksimal 1000 key per request.
+    for (let i = 0; i < keys.length; i += 1000) {
+      await this.client.send(
+        new DeleteObjectsCommand({
+          Bucket: this.bucket,
+          Delete: { Objects: keys.slice(i, i + 1000).map((Key) => ({ Key })), Quiet: true },
+        }),
+      );
+    }
   }
 }

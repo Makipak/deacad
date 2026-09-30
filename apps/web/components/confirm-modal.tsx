@@ -6,6 +6,7 @@ interface ConfirmModalProps {
   confirmLabel: string;
   danger?: boolean;
   busy?: boolean;
+  confirmDisabled?: boolean; // mis. form alasan di dalam modal belum valid.
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -18,6 +19,7 @@ export function ConfirmModal({
   confirmLabel,
   danger = false,
   busy = false,
+  confirmDisabled = false,
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
@@ -37,7 +39,7 @@ export function ConfirmModal({
           </button>
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || confirmDisabled}
             onClick={onConfirm}
             className={`${danger ? "btn-danger" : "btn-primary"} h-11 flex-1 rounded-lg`}
           >

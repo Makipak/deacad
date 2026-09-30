@@ -1,0 +1,3 @@
+# Normalisasi line ending ke LF di repo, apa pun OS-nya (dev Windows & Linux bergantian).
+# Tanpa ini, checkout CRLF di Windows bikin belasan file tampil "modified" padahal isinya sama.
+* text=auto eol=lf

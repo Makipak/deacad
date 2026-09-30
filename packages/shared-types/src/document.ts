@@ -59,7 +59,14 @@ export const documentSearchQuerySchema = z.object({
   categoryId: z.cuid().optional(),
   fileType: fileTypeSchema.optional(),
   sort: z.enum(["terbaru", "terpopuler", "relevan"]).default("relevan"),
-  cursor: z.string().optional(), // cursor pagination, bukan offset — lihat ARCHITECTURE.md #11.
-  limit: z.int().positive().max(50).default(20),
+  page: z.int().positive().default(1), // pagination bernomor (offset) — halaman mulai dari 1.
+  limit: z.int().positive().max(50).default(12), // 12 = pas untuk grid 3 & 4 kolom.
 });
 export type DocumentSearchQuery = z.infer<typeof documentSearchQuerySchema>;
+
+// Baris dokumen milik satu user di menu Pengguna admin (GET /users/:id/documents) — semua status,
+// plus URL file asli supaya admin bisa memeriksa isinya sebelum memutuskan menghapus.
+export const adminUserDocumentSchema = documentSchema
+  .pick({ id: true, title: true, fileType: true, status: true, viewCount: true, downloadCount: true, createdAt: true })
+  .extend({ originalFileUrl: z.url() });
+export type AdminUserDocument = z.infer<typeof adminUserDocumentSchema>;

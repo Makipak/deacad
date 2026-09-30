@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Injectable,
   type CanActivate,
   type ExecutionContext,
@@ -7,6 +8,7 @@ import {
 import { Reflector } from "@nestjs/core";
 import { JwtService } from "@nestjs/jwt";
 import type { Request } from "express";
+import { prisma } from "@deacad/database";
 import { IS_PUBLIC_KEY } from "../decorators/public.decorator.js";
 import type { AuthenticatedUser } from "../types/authenticated-user.js";
 
@@ -20,7 +22,7 @@ export class JwtAuthGuard implements CanActivate {
     private readonly jwtService: JwtService,
   ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     // Cek metadata @Public() di handler atau class — kalau ada, lolos tanpa cek token.
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
@@ -34,17 +36,29 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException("Token akses tidak ditemukan");
     }
 
+    let payload: AuthenticatedUser;
     try {
-      // Verifikasi signature + expiry access token (short-lived, stateless — tidak query DB).
-      const payload = this.jwtService.verify<AuthenticatedUser>(token, {
+      // Verifikasi signature + expiry access token.
+      payload = this.jwtService.verify<AuthenticatedUser>(token, {
         secret: process.env.JWT_ACCESS_SECRET,
       });
-      // Tempel user hasil decode ke request supaya bisa dipakai @CurrentUser() dan RolesGuard.
-      request.user = payload;
-      return true;
     } catch {
       throw new UnauthorizedException("Token akses tidak valid atau kedaluwarsa");
     }
+
+    // Cek status akun di DB (lookup by primary key, murah) — tanpa ini user yang baru di-ban tetap
+    // bisa memakai access token lamanya sampai expired (default 15 menit). Role juga diambil dari DB,
+    // bukan dari klaim token, supaya perubahan role langsung berlaku.
+    const account = await prisma.user.findUnique({
+      where: { id: payload.id },
+      select: { role: true, bannedAt: true },
+    });
+    if (!account) throw new UnauthorizedException("Akun tidak ditemukan");
+    if (account.bannedAt) throw new ForbiddenException("Akun Anda telah diblokir oleh admin");
+
+    // Tempel user ke request supaya bisa dipakai @CurrentUser() dan RolesGuard.
+    request.user = { id: payload.id, role: account.role };
+    return true;
   }
 
   private extractBearerToken(request: Request): string | undefined {

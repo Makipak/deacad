@@ -2,14 +2,29 @@
 
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { SearchBar } from "@/components/search-bar";
 
-// Hero search-first (desain Landing Browse) — hanya tampil untuk visitor yang belum login
-// (PRD §7.1); di-render server-side lalu di-collapse client-side saat sesi ter-restore.
-export function Hero() {
+interface HeroProps {
+  q?: string;
+  category?: string;
+  sort?: string;
+}
+
+// Bagian atas beranda. Visitor belum login: hero search-first (desain Landing Browse, PRD §7.1).
+// User yang sudah login: tanpa hero — judul "Jelajah Dokumen" + kolom cari ringkas, lalu daftar
+// dokumen di bawahnya. Tidak ada menu Jelajah terpisah; user masuk lewat logo "Deacad".
+export function Hero({ q: query, category, sort }: HeroProps) {
   const { status } = useAuth();
   const router = useRouter();
 
-  if (status === "authenticated") return null;
+  if (status === "authenticated") {
+    return (
+      <div className="mx-auto max-w-7xl px-4 pb-6 pt-8 sm:px-6 lg:px-8">
+        <h1 className="mb-4 font-serif text-3xl font-bold">Jelajah Dokumen</h1>
+        <SearchBar basePath="/" defaultValue={query} category={category} sort={sort} />
+      </div>
+    );
+  }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();

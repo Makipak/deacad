@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
@@ -54,6 +55,13 @@ export class AuthService {
     const passwordMatches = await compare(input.password, user.passwordHash);
     if (!passwordMatches) throw invalidCredentials();
 
+    // Cek ban SETELAH password benar — supaya status ban tidak bocor ke orang yang cuma menebak email.
+    if (user.bannedAt) {
+      throw new ForbiddenException(
+        `Akun Anda diblokir oleh admin.${user.banReason ? ` Alasan: ${user.banReason}` : ""}`,
+      );
+    }
+
     const authUser: AuthenticatedUser = { id: user.id, role: user.role };
     const tokens = await this.issueTokenPair(authUser, randomUUID());
     return { ...tokens, user: authUser };
@@ -88,6 +96,13 @@ export class AuthService {
     });
 
     const user = await prisma.user.findUniqueOrThrow({ where: { id: stored.userId } });
+    if (user.bannedAt) {
+      await prisma.refreshToken.updateMany({
+        where: { familyId: stored.familyId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      throw new ForbiddenException("Akun Anda telah diblokir oleh admin");
+    }
     const authUser: AuthenticatedUser = { id: user.id, role: user.role };
     return this.issueTokenPair(authUser, stored.familyId);
   }

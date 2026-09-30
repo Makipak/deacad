@@ -10,6 +10,7 @@ import { apiFetch, ApiError } from "@/lib/api-client";
 import { loadSnapScript, snapPay } from "@/lib/midtrans";
 import { formatRupiah } from "@/lib/format";
 import { StatusBadge, TxStatusBadge } from "@/components/status-badge";
+import { ProfileEditor } from "@/components/profile-editor";
 
 // Baris hasil GET /transactions/mine — include document.title (join di transactions.service.ts#listMine).
 type MyTransaction = Transaction & { document: { title: string } };
@@ -33,7 +34,7 @@ function initials(name: string) {
 // Halaman profil (desain "Profile"): header identitas + dua tab — Dokumen Saya dan Riwayat
 // Transaksi. Juga jadi jalan balik untuk lanjut bayar upload yang tertunda (ARCHITECTURE.md #9).
 export default function ProfilePage() {
-  const { status, accessToken } = useAuth();
+  const { user, status, accessToken } = useAuth();
   const router = useRouter();
 
   const [tab, setTab] = useState<"documents" | "transactions">("documents");
@@ -49,7 +50,9 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
-  }, [status, router]);
+    // Admin tidak memakai profil/riwayat — arahkan ke panel admin.
+    if (status === "authenticated" && user?.role === "admin") router.replace("/admin");
+  }, [status, user, router]);
 
   const loadData = useCallback(async () => {
     const [userRes, docsRes, txRes, categoriesRes, settingsRes] = await Promise.all([
@@ -68,7 +71,7 @@ export default function ProfilePage() {
   }, [accessToken]);
 
   useEffect(() => {
-    if (status !== "authenticated") return;
+    if (status !== "authenticated" || user?.role === "admin") return;
     async function run() {
       try {
         await loadData();
@@ -77,9 +80,9 @@ export default function ProfilePage() {
       }
     }
     void run();
-  }, [status, loadData]);
+  }, [status, user, loadData]);
 
-  if (status !== "authenticated") return null;
+  if (status !== "authenticated" || user?.role === "admin") return null;
 
   if (!profile) {
     return (
@@ -156,6 +159,8 @@ export default function ProfilePage() {
           <p className="mt-1 text-[14px] text-muted">{profile.email}</p>
         </div>
       </div>
+
+      <ProfileEditor profile={profile} onSaved={setProfile} />
 
       {error && (
         <p className="mb-5 rounded-sm border border-danger bg-danger-subtle px-3 py-2 text-[14px] text-danger">

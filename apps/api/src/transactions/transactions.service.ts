@@ -1,5 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+  BadGatewayException,
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  type OnModuleInit,
+} from "@nestjs/common";
 import { prisma } from "@deacad/database";
 import type { CreateTransactionInput } from "@deacad/shared-types";
 import { SettingsService } from "../settings/settings.service.js";
@@ -12,7 +19,7 @@ const FAILED_STATUSES = new Set(["deny", "cancel"]);
 const REFUND_STATUSES = new Set(["refund", "partial_refund"]);
 
 @Injectable()
-export class TransactionsService {
+export class TransactionsService implements OnModuleInit {
   private readonly logger = new Logger(TransactionsService.name);
 
   constructor(
@@ -20,6 +27,43 @@ export class TransactionsService {
     private readonly midtransService: MidtransService,
     private readonly convertQueueService: ConvertQueueService,
   ) {}
+
+  onModuleInit(): void {
+    // Admin mematikan upload berbayar -> dokumen yang sedang menunggu bayar langsung diproses.
+    this.settingsService.onUploadPaymentDisabled(() => this.releasePendingUploads());
+  }
+
+  // Upload dibuat gratis: semua dokumen yang masih menunggu bayar (status processing, belum pernah
+  // di-convert, belum ada transaksi upload yang paid) langsung diproses. Transaksi upload yang masih
+  // pending ditandai expired supaya tidak perlu dibayar lagi. Dokumen yang user-nya belum sempat
+  // menekan "Bayar" (belum punya transaksi sama sekali) ikut diproses.
+  async releasePendingUploads(): Promise<number> {
+    const waiting = await prisma.document.findMany({
+      where: {
+        status: "processing",
+        convertedPdfUrl: null,
+        transactions: { none: { type: "upload", status: "paid" } }, // yang paid sudah di-enqueue webhook.
+      },
+    });
+
+    for (const document of waiting) {
+      // Hanya menyentuh yang masih pending — kalau webhook keburu menandai paid, tidak ditimpa.
+      await prisma.transaction.updateMany({
+        where: { documentId: document.id, type: "upload", status: "pending" },
+        data: { status: "expired" },
+      });
+      await this.convertQueueService.enqueue({
+        documentId: document.id,
+        originalFileUrl: document.originalFileUrl,
+        fileType: document.fileType,
+      });
+    }
+
+    if (waiting.length > 0) {
+      this.logger.log(`Upload gratis diaktifkan: ${waiting.length} dokumen menunggu bayar langsung diproses`);
+    }
+    return waiting.length;
+  }
 
   async create(userId: string, input: CreateTransactionInput) {
     // Cek transaksi pending yang sudah ada untuk kombinasi user+document+type SEBELUM bikin baru
@@ -167,10 +211,31 @@ export class TransactionsService {
   }
 
   // Tombol "cek ulang status" manual di admin panel (ARCHITECTURE.md #12) — trigger reconciliation on-demand.
-  async manualRecheck(transactionId: string): Promise<void> {
+  // Mengembalikan true kalau Midtrans mengenal order-nya, false kalau order belum pernah dibayar/dibuka.
+  async manualRecheck(transactionId: string): Promise<boolean> {
     const transaction = await prisma.transaction.findUnique({ where: { id: transactionId } });
     if (!transaction) throw new NotFoundException("Transaksi tidak ditemukan");
-    const midtransStatus = await this.midtransService.getStatus(transaction.midtransOrderId);
+
+    let midtransStatus: { transaction_status: string };
+    try {
+      midtransStatus = await this.midtransService.getStatus(transaction.midtransOrderId);
+    } catch (error) {
+      // SDK midtrans-client melempar error untuk semua respons non-2xx (httpStatusCode di error-nya).
+      const httpStatus = Number((error as { httpStatusCode?: string | number }).httpStatusCode);
+      if (httpStatus === 404) {
+        // Midtrans belum punya transaksi ini: user belum sempat membuka/menyelesaikan Snap. Bukan error —
+        // status tetap pending, tidak ada yang perlu disinkronkan.
+        return false;
+      }
+      this.logger.error(`Cek status Midtrans gagal untuk ${transaction.midtransOrderId}: ${String(error)}`);
+      throw new BadGatewayException(
+        httpStatus === 401
+          ? "Kunci Midtrans (MIDTRANS_SERVER_KEY) tidak valid — periksa .env"
+          : "Gagal menghubungi Midtrans, coba lagi nanti",
+      );
+    }
+
     await this.syncStatus(transaction.midtransOrderId, midtransStatus.transaction_status);
+    return true;
   }
 }

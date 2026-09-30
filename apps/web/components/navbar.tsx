@@ -16,7 +16,7 @@ function initials(name: string) {
     .join("");
 }
 
-// Navigasi global — sticky, wordmark serif, search ringkas, toggle dark mode, avatar+dropdown
+// Navigasi global — sticky, wordmark serif, toggle dark mode, avatar+dropdown
 // (Profil/Admin/Keluar) atau tombol Masuk+Daftar kalau belum login. Sesuai desain "Landing Browse".
 export function Navbar() {
   const { user, status, logout } = useAuth();
@@ -37,12 +37,6 @@ export function Navbar() {
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
   }, [menuOpen]);
-
-  function handleSearch(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const q = new FormData(e.currentTarget).get("q");
-    router.push(q ? `/?q=${encodeURIComponent(String(q))}` : "/");
-  }
 
   // Area /admin punya app shell sendiri (sidebar + header, lihat app/admin/layout.tsx) —
   // navbar publik tidak ditampilkan di sana, sesuai desain "Admin Dashboard".
@@ -66,25 +60,16 @@ export function Navbar() {
           Deacad
         </Link>
 
-        <form onSubmit={handleSearch} className="hidden max-w-105 flex-1 md:block" role="search">
-          <input
-            type="search"
-            name="q"
-            placeholder="Cari dokumen..."
-            aria-label="Cari dokumen"
-            className="input bg-surface"
-          />
-        </form>
 
         <div className="flex-1" />
 
         <nav className="hidden items-center gap-1 md:flex" aria-label="Navigasi utama">
-          <Link href="/" className="px-3 py-2 text-[15px] font-medium text-fg transition-colors hover:text-primary">
-            Jelajah
-          </Link>
           <Link
             href="/upload"
-            className="px-3 py-2 text-[15px] font-medium text-fg transition-colors hover:text-primary"
+            aria-current={pathname === "/upload" ? "page" : undefined}
+            className={`px-3 py-2 text-[15px] font-medium transition-colors hover:text-primary ${
+              pathname === "/upload" ? "text-primary" : "text-fg"
+            }`}
           >
             Upload
           </Link>
@@ -113,22 +98,15 @@ export function Navbar() {
                   <p className="truncate text-[14px] font-semibold">{user.name}</p>
                   <p className="truncate text-[13px] text-muted">{user.email}</p>
                 </div>
-                <Link
-                  role="menuitem"
-                  href="/profile"
-                  onClick={() => setMenuOpen(false)}
-                  className="block px-4 py-2 text-[14px] transition-colors hover:bg-surface"
-                >
-                  Profil &amp; Riwayat
-                </Link>
-                {user.role === "admin" && (
+                {/* Admin tidak punya dokumen/transaksi pribadi — Profil & Riwayat hanya untuk user biasa. */}
+                {user.role !== "admin" && (
                   <Link
                     role="menuitem"
-                    href="/admin"
+                    href="/profile"
                     onClick={() => setMenuOpen(false)}
                     className="block px-4 py-2 text-[14px] transition-colors hover:bg-surface"
                   >
-                    Panel Admin
+                    Profil &amp; Riwayat
                   </Link>
                 )}
                 <button
@@ -167,19 +145,7 @@ export function Navbar() {
 
       {mobileOpen && (
         <div className="animate-fade-in border-t border-line bg-elevated px-4 py-3 md:hidden">
-          <form onSubmit={handleSearch} role="search" className="mb-3">
-            <input
-              type="search"
-              name="q"
-              placeholder="Cari dokumen..."
-              aria-label="Cari dokumen"
-              className="input bg-surface"
-            />
-          </form>
           <nav className="flex flex-col" aria-label="Navigasi mobile">
-            <Link href="/" onClick={() => setMobileOpen(false)} className="py-2.5 text-[15px] font-medium">
-              Jelajah
-            </Link>
             <Link href="/upload" onClick={() => setMobileOpen(false)} className="py-2.5 text-[15px] font-medium">
               Upload
             </Link>

@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-// Footer minimal sesuai PRD §5 — tautan placeholder, konsisten di semua halaman publik.
+// Footer minimal sesuai PRD §5 — tautan ke halaman informasi, konsisten di semua halaman publik.
 // Disembunyikan di /admin (app shell admin punya layout sendiri, desain "Admin Dashboard").
 export function Footer() {
   const pathname = usePathname();
@@ -13,15 +14,15 @@ export function Footer() {
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 text-[13px] text-muted">
         <span>© 2026 Deacad</span>
         <div className="flex gap-5">
-          <a href="#" className="text-muted transition-colors hover:text-fg">
+          <Link href="/tentang" className="text-muted transition-colors hover:text-fg">
             Tentang
-          </a>
-          <a href="#" className="text-muted transition-colors hover:text-fg">
+          </Link>
+          <Link href="/laporkan" className="text-muted transition-colors hover:text-fg">
             Laporkan Penyalahgunaan
-          </a>
-          <a href="#" className="text-muted transition-colors hover:text-fg">
+          </Link>
+          <Link href="/ketentuan" className="text-muted transition-colors hover:text-fg">
             Ketentuan &amp; Privasi
-          </a>
+          </Link>
         </div>
       </div>
     </footer>

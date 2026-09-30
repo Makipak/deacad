@@ -38,7 +38,11 @@ export class TransactionsController {
   @Roles("admin")
   @UseGuards(RolesGuard)
   async recheck(@Param("id") id: string) {
-    await this.transactionsService.manualRecheck(id);
-    return { message: "Status transaksi sudah disinkronkan ulang" };
+    const found = await this.transactionsService.manualRecheck(id);
+    return {
+      message: found
+        ? "Status transaksi sudah disinkronkan ulang"
+        : "Midtrans belum mencatat pembayaran untuk order ini (user belum menyelesaikan pembayaran)",
+    };
   }
 }

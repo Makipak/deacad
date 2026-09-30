@@ -1,17 +1,26 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import type { LoginInput, RegisterInput, User, UserRole } from "@deacad/shared-types";
+import { isProfileComplete, type LoginInput, type RegisterInput, type User, type UserRole } from "@deacad/shared-types";
 import { apiFetch } from "./api-client";
 
 // name+email ikut disimpan untuk navbar (avatar inisial + header dropdown, desain Landing Browse).
-type AuthUser = Pick<User, "id" | "name" | "email" | "role">;
+type AuthUser = Pick<User, "id" | "name" | "email" | "role" | "university" | "studyProgram" | "studentId" | "phone">;
+
+function toAuthUser(me: User): AuthUser {
+  const { id, name, email, role, university, studyProgram, studentId, phone } = me;
+  return { id, name, email, role, university, studyProgram, studentId, phone };
+}
 
 interface AuthContextValue {
   user: AuthUser | null;
   accessToken: string | null;
   // "loading" cuma sebentar di awal mount selagi coba restore sesi dari refresh token cookie.
   status: "loading" | "authenticated" | "unauthenticated";
+  // true kalau user (non-admin) sudah mengisi data diri — dipakai ProfileGate untuk redirect.
+  profileComplete: boolean;
+  // Ganti data user di memori setelah profil disimpan (tanpa perlu reload/refresh token).
+  setUser: (user: AuthUser) => void;
   login: (input: LoginInput) => Promise<AuthUser>;
   register: (input: RegisterInput) => Promise<AuthUser>;
   logout: () => Promise<void>;
@@ -34,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then(({ res, me }) => {
         if (cancelled) return;
         setAccessToken(res.accessToken);
-        setUser({ id: me.id, name: me.name, email: me.email, role: me.role });
+        setUser(toAuthUser(me));
         setStatus("authenticated");
       })
       .catch(() => {
@@ -53,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     // Response login cuma {id, role} (auth.service.ts) — susulkan GET /users/me untuk name+email.
     const me = await apiFetch<User>("/users/me", { accessToken: res.accessToken });
-    const authUser: AuthUser = { id: me.id, name: me.name, email: me.email, role: me.role };
+    const authUser = toAuthUser(me);
     setAccessToken(res.accessToken);
     setUser(authUser);
     setStatus("authenticated");
@@ -78,8 +87,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStatus("unauthenticated");
   }, []);
 
+  // Admin tidak punya data diri akademik — dianggap selalu lengkap.
+  const profileComplete = user !== null && (user.role === "admin" || isProfileComplete(user));
+
   return (
-    <AuthContext.Provider value={{ user, accessToken, status, login, register, logout }}>
+    <AuthContext.Provider
+      value={{ user, accessToken, status, profileComplete, setUser, login, register, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );
