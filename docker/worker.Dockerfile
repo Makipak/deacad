@@ -1,10 +1,11 @@
-# Build & run apps/worker. Base image beda dari api/web — butuh LibreOffice + Poppler terpasang
-# di OS level, alasannya ada di ARCHITECTURE.md #3 (worker dipisah container karena dependency berat ini).
+# Build & run apps/worker. Worker dipisah dari api/web (proses background).
 FROM node:22-bookworm-slim AS base
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libreoffice \
-    poppler-utils \
-    && rm -rf /var/lib/apt/lists/*
+# Render PDF pakai mupdf (WASM, tanpa paket OS). LibreOffice hanya perlu kalau ALLOW_PPTX_UPLOAD=true:
+# tambahkan build-arg WITH_LIBREOFFICE=1 → docker build --build-arg WITH_LIBREOFFICE=1 ...
+ARG WITH_LIBREOFFICE=0
+RUN if [ "$WITH_LIBREOFFICE" = "1" ]; then \
+      apt-get update && apt-get install -y --no-install-recommends libreoffice && rm -rf /var/lib/apt/lists/*; \
+    fi
 RUN corepack enable && corepack prepare pnpm@11.9.0 --activate
 WORKDIR /repo
 
@@ -29,4 +30,5 @@ COPY --from=build /repo/packages ./packages
 COPY --from=build /repo/apps/worker/dist ./apps/worker/dist
 COPY --from=build /repo/apps/worker/node_modules ./apps/worker/node_modules
 COPY --from=build /repo/apps/worker/package.json ./apps/worker/package.json
+ENV WORKER_MODE=loop
 CMD ["node", "apps/worker/dist/index.js"]

@@ -4,14 +4,14 @@ Platform sharing dokumen akademik. Detail keputusan arsitektur ada di [ARCHITECT
 
 ## Stack
 
-Next.js 16 · NestJS 11 · PostgreSQL 17 · Prisma ORM 7 · BullMQ 5 · Redis 8 · Zod 4 · Tailwind CSS 4 · Turborepo 2 · pnpm 11.
+Next.js 16 · NestJS 11 · PostgreSQL 17 · Prisma ORM 7 · Postgres job queue · mupdf · Zod 4 · Tailwind CSS 4 · Turborepo 2 · pnpm 11.
 
 ## Struktur
 
 ```
 apps/web/       Next.js — frontend publik + admin panel
 apps/api/       NestJS — REST API, auth, business logic, webhook
-apps/worker/    Consumer BullMQ — convert PDF/PPTX ke gambar (LibreOffice + Poppler)
+apps/worker/    Worker antrian Postgres — render PDF ke gambar via mupdf (PPTX opsional via LibreOffice); jalan lewat cron (`--once`) atau loop (`--loop`)
 packages/database/    Prisma schema, client, seed
 packages/shared-types/  Zod schema + TS types dipakai lintas app
 packages/config/       eslint & tsconfig base
@@ -30,7 +30,7 @@ chmod +x scripts/setup-linux.sh
 
 Script ini install: nvm + Node.js 22, pnpm (lewat corepack, versi dikunci ke `packageManager` di
 `package.json`), Docker Engine + Compose plugin (repo resmi Docker, bukan paket `docker.io` Ubuntu
-yang lebih lama), LibreOffice + `poppler-utils` (buat jalanin `apps/worker` langsung di host tanpa
+yang lebih lama), LibreOffice (opsional, buat jalanin `apps/worker` langsung di host tanpa
 Docker kalau mau), serta `postgresql-client`/`redis-tools` buat debug cepat (`psql`, `redis-cli`) ke
 container `docker-compose`. Idempotent — aman dijalankan ulang.
 
@@ -56,7 +56,7 @@ Catatan Pop!_OS spesifik:
 
 ## Menjalankan (development)
 
-Status saat ini: **demo frontend jalan mandiri dengan mock data** (`apps/web`), backend (`apps/api`, `apps/worker`, `packages/database`) sudah diimplementasikan penuh tapi butuh Postgres+Redis nyala untuk dites end-to-end.
+Status saat ini: **demo frontend jalan mandiri dengan mock data** (`apps/web`), backend (`apps/api`, `apps/worker`, `packages/database`) sudah diimplementasikan penuh tapi butuh Postgres + storage S3-compatible nyala untuk dites end-to-end.
 
 ### 1. Demo web app saja (paling cepat, tanpa Docker)
 
@@ -103,3 +103,7 @@ docker compose up -d --build
 - Prisma 7 generate client ke `packages/database/src/generated/` (bukan `node_modules`) — jalankan `pnpm db:generate` setiap habis ubah `schema.prisma`.
 - `docker-compose.yml` belum pernah dijalankan/dites di lingkungan ini — cek ulang versi image & port sebelum deploy production.
 - Kredensial Midtrans di `.env.example` masih placeholder — daftar akun sandbox di dashboard Midtrans untuk testing pembayaran.
+
+## Deploy ke shared hosting (cPanel)
+
+Lihat [`DEPLOY-SHARED-HOSTING.md`](./DEPLOY-SHARED-HOSTING.md).

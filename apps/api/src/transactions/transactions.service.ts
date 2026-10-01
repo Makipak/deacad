@@ -166,11 +166,16 @@ export class TransactionsService implements OnModuleInit {
           // sudah tersimpan di storage tapi belum diproses jadi gambar per halaman.
           const document = await tx.document.findUnique({ where: { id: row.document_id } });
           if (document) {
-            await this.convertQueueService.enqueue({
-              documentId: document.id,
-              originalFileUrl: document.originalFileUrl,
-              fileType: document.fileType,
-            });
+            // Pakai `tx` — job convert ikut commit/rollback bersama status pembayaran (tidak ada
+            // pembayaran "paid" tanpa job, atau job tanpa pembayaran yang tersimpan).
+            await this.convertQueueService.enqueue(
+              {
+                documentId: document.id,
+                originalFileUrl: document.originalFileUrl,
+                fileType: document.fileType,
+              },
+              tx,
+            );
           }
         }
       }

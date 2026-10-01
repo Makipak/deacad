@@ -10,8 +10,8 @@ Deacad is a monorepo (Turborepo + pnpm workspaces) for an academic document-shar
 Full product and architecture rationale lives in [ARCHITECTURE.md](./ARCHITECTURE.md) — read it
 before making design-level changes; this file only covers commands and structural orientation.
 
-Stack: Next.js 16 (`apps/web`) · NestJS 11 (`apps/api`) · BullMQ worker (`apps/worker`) ·
-PostgreSQL 17 + Prisma ORM 7 (`packages/database`) · Zod 4 (`packages/shared-types`) · Redis 8.
+Stack: Next.js 16 (`apps/web`) · NestJS 11 (`apps/api`) · Postgres-queue worker (`apps/worker`, mupdf) ·
+PostgreSQL 17 + Prisma ORM 7 (`packages/database`) · Zod 4 (`packages/shared-types`). No Redis: the convert queue is the `convert_jobs` table (`SELECT … FOR UPDATE SKIP LOCKED`). Uploads are PDF-only unless `ALLOW_PPTX_UPLOAD=true` (needs LibreOffice). Shared-hosting deploy: see `DEPLOY-SHARED-HOSTING.md`.
 
 ## Commands
 
@@ -43,14 +43,14 @@ pnpm --filter @deacad/database db:migrate
 
 No test runner is configured yet in this repo — there is no `test` script in any package.json.
 
-### Local infra (Postgres/Redis/MinIO)
+### Local infra (Postgres/MinIO)
 
 ```bash
 cp .env.example .env                  # fill DATABASE_URL, JWT secrets, Midtrans keys, etc.
-docker compose up -d postgres redis storage
+docker compose up -d postgres storage
 ```
 
-Full Docker build (web+api+worker+db+redis+nginx): `docker compose up -d --build`.
+Full Docker build (web+api+worker+db+storage+nginx): `docker compose up -d --build`.
 
 **Postgres host port is 5434, not 5432** (`docker-compose.yml`'s `postgres` service maps
 `"5434:5432"`). This was changed from the default 5432 because dev machines frequently already have
@@ -66,7 +66,7 @@ you must change the host port again, update both `docker-compose.yml`'s `ports:`
 ### Linux (Pop!_OS/Ubuntu) dev machine setup
 
 `./scripts/setup-linux.sh` installs nvm+Node 22, pnpm via corepack, Docker Engine + Compose plugin,
-LibreOffice + poppler-utils (so `apps/worker` can run outside Docker), and postgresql-client/redis-tools.
+LibreOffice (optional, PPTX only), and postgresql-client.
 Idempotent, safe to re-run.
 
 ## Known local dev gotchas
@@ -172,7 +172,7 @@ whole token family on reuse) lives in `apps/api/src/auth/auth.service.ts`.
    `SettingsService.get().uploadPaymentEnabled` — if payment is required, the convert job is only
    enqueued from `apps/api/src/transactions/transactions.service.ts` (`syncStatus`) after a Midtrans
    webhook confirms payment, not at upload time.
-3. `apps/worker/src/convert.processor.ts` consumes the same queue (`document-convert`) and must keep
+3. `apps/worker/src/convert.processor.ts` claims jobs from the `convert_jobs` table (`apps/worker/src/queue.ts`) and must keep
    its `ConvertJobData` shape in sync with `apps/api/src/queue/convert-queue.service.ts` — the two are
    not shared via an import, they're duplicated by design (worker and api are separate deployables).
 

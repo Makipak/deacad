@@ -1,4 +1,4 @@
-# Orchestration lokal/production sederhana: web, api, worker, postgres, redis, nginx.
+# Orchestration lokal/production sederhana: web, api, worker, postgres, storage (MinIO), nginx.
 # Container worker sengaja dipisah dari api (lihat ARCHITECTURE.md #3) —
 # LibreOffice berat dan rawan hang, jadi tidak boleh numpang di proses API utama.
 name: deacad
@@ -22,20 +22,6 @@ services:
       - "5434:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U deacad"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  # Broker queue BullMQ — penghubung api (producer) dan worker (consumer).
-  redis:
-    image: redis:8-alpine
-    restart: unless-stopped
-    volumes:
-      - redis_data:/data
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -64,12 +50,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
     ports:
       - "4000:4000"
 
-  # Consumer queue — convert PDF/PPTX jadi gambar per halaman via LibreOffice+Poppler.
+  # Consumer queue — convert PDF/PPTX jadi gambar per halaman via mupdf (PDF-only; PPTX opsional via LibreOffice).
   worker:
     build:
       context: .
@@ -79,10 +63,9 @@ services:
     environment:
       # Override host-oriented values dari .env (dipakai proses native pnpm dev) dengan
       # nama service Docker Compose — di dalam container, "localhost" nunjuk ke dirinya
-      # sendiri, bukan ke container postgres/redis/storage.
+      # sendiri, bukan ke container postgres/storage.
       DATABASE_URL: postgresql://deacad:deacad@postgres:5432/deacad?schema=public
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      WORKER_MODE: loop
       STORAGE_ENDPOINT: http://storage:9000
       # URL yang disimpan ke DB & dibuka browser di host — beda dari STORAGE_ENDPOINT di atas
       # yang cuma bisa di-resolve dari dalam jaringan Docker Compose. ${STORAGE_PUBLIC_ENDPOINT:-...}
@@ -92,8 +75,6 @@ services:
       # biasa (browser host akses port MinIO yang di-publish langsung).
       STORAGE_PUBLIC_ENDPOINT: ${STORAGE_PUBLIC_ENDPOINT:-http://localhost:9000}
     depends_on:
-      redis:
-        condition: service_healthy
       postgres:
         condition: service_healthy
     # Tidak expose port — worker murni background consumer, tidak menerima HTTP.
@@ -125,5 +106,4 @@ services:
 
 volumes:
   postgres_data:
-  redis_data:
   storage_data:

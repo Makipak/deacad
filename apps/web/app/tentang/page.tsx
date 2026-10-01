@@ -20,7 +20,7 @@ export default function TentangPage() {
 
       <InfoSection heading="Cara kerjanya">
         <p>
-          Kamu bisa mengunggah dokumen berformat PDF atau PPTX. Setelah diunggah, dokumen diproses otomatis
+          Kamu bisa mengunggah dokumen berformat PDF (presentasi PPT bisa diekspor ke PDF dulu). Setelah diunggah, dokumen diproses otomatis
           menjadi halaman-halaman pratinjau, lalu tampil di beranda begitu siap. Pengunjung bisa membaca
           pratinjau dan, tergantung pengaturan platform, mengunduh dokumen aslinya.
         </p>

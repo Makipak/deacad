@@ -1,57 +1,82 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Job } from "bullmq";
 import { prisma } from "@deacad/database";
+import { config } from "./config.js";
+import { PermanentJobError } from "./errors.js";
 import { convertPptxToPdf } from "./lib/libreoffice.js";
-import { convertPdfToImages, renderPdfThumbnail } from "./lib/poppler.js";
-import {
-  downloadOriginal,
-  uploadConvertedPdf,
-  uploadPageImage,
-  uploadThumbnail,
-} from "./lib/storage.js";
+import { PdfRenderer } from "./lib/pdf-render.js";
+import { downloadOriginal, uploadConvertedPdf, uploadPageImage, uploadThumbnail } from "./lib/storage.js";
+import { heartbeat, type ClaimedJob } from "./queue.js";
 
-// Harus sinkron dengan ConvertJobData di apps/api/src/queue/convert-queue.service.ts.
-export interface ConvertJobData {
-  documentId: string;
-  originalFileUrl: string;
-  fileType: "pdf" | "pptx";
-}
-
-// Satu job = satu dokumen: download original -> (convert ke PDF kalau pptx) -> convert ke gambar
-// per halaman -> upload semua gambar -> update DocumentPage + status "ready".
-// BullMQ otomatis retry job yang throw error (attempts+backoff diatur di sisi producer),
-// jadi di sini CUKUP throw error apa adanya kalau ada langkah yang gagal (ARCHITECTURE.md #9).
-export async function processConvertJob(job: Job<ConvertJobData>): Promise<void> {
-  const { documentId, originalFileUrl, fileType } = job.data;
+// Satu job = satu dokumen: download original -> (convert ke PDF kalau pptx) -> render tiap halaman jadi PNG
+// -> upload -> update DocumentPage + status "ready". Retry/backoff dikelola queue.ts: di sini CUKUP
+// throw error apa adanya kalau ada langkah yang gagal (ARCHITECTURE.md #9); lempar PermanentJobError
+// untuk kegagalan yang pasti tidak sembuh dengan retry.
+export async function processConvertJob(job: ClaimedJob): Promise<void> {
+  const { documentId, originalFileUrl, fileType } = job;
 
   // Direktori temp terisolasi per job — dihapus di finally supaya tidak menumpuk file di disk worker.
   const workDir = await mkdtemp(join(tmpdir(), `deacad-${documentId}-`));
+  let renderer: PdfRenderer | null = null;
 
   try {
     const originalPath = join(workDir, `original.${fileType}`);
     await downloadOriginal(originalFileUrl, originalPath);
 
-    // PPTX wajib di-convert ke PDF dulu (LibreOffice), PDF asli langsung lanjut ke tahap gambar.
-    const pdfPath =
-      fileType === "pptx" ? await convertPptxToPdf(originalPath, workDir) : originalPath;
-
-    const convertedPdfUrl = await uploadConvertedPdf(pdfPath, documentId);
-    const imagePaths = await convertPdfToImages(pdfPath, workDir);
-
-    if (imagePaths.length === 0) {
-      throw new Error("Hasil convert tidak menghasilkan halaman sama sekali");
+    // PPTX wajib di-convert ke PDF dulu (LibreOffice, hanya ada di VPS/Docker); PDF asli langsung dirender.
+    // Untuk PDF, "converted" cukup menunjuk ke file aslinya — tidak perlu menyalin objek yang sama ke storage
+    // (hemat kuota storage gratis; deleteByUrls() sudah men-dedup key yang kembar).
+    let pdfPath = originalPath;
+    let convertedPdfUrl = originalFileUrl;
+    if (fileType === "pptx") {
+      pdfPath = await convertPptxToPdf(originalPath, workDir);
+      convertedPdfUrl = await uploadConvertedPdf(pdfPath, documentId);
     }
 
-    const pageUrls = await Promise.all(
-      imagePaths.map((imagePath) => uploadPageImage(imagePath, documentId)),
-    );
+    renderer = await PdfRenderer.open(pdfPath);
+    const pageCount = renderer.pageCount;
+    if (pageCount < 1) {
+      throw new PermanentJobError("Hasil convert tidak menghasilkan halaman sama sekali");
+    }
+    if (pageCount > config.maxPages) {
+      throw new PermanentJobError(`Dokumen ${pageCount} halaman, melebihi batas ${config.maxPages} halaman per dokumen`);
+    }
 
-    // Thumbnail kartu dokumen: halaman 1 versi 320px (sampul di halaman browse/profil).
-    // Satu pipeline dengan convert halaman — kalau pdftoppm sanggup render halaman penuh,
-    // render thumbnail juga pasti bisa, jadi tidak perlu jalur error terpisah.
-    const thumbnailPath = await renderPdfThumbnail(pdfPath, workDir);
+    // Render berurutan (satu halaman di memori pada satu waktu), upload paralel terbatas di belakangnya.
+    const pageUrls: string[] = new Array<string>(pageCount);
+    const inflight = new Set<Promise<void>>();
+    let uploadError: unknown;
+
+    for (let index = 0; index < pageCount; index++) {
+      if (uploadError) throw uploadError;
+
+      const imagePath = join(workDir, `page-${index + 1}.png`);
+      await renderer.renderPageToFile(index, imagePath);
+
+      // Tidak boleh ada promise yang reject tanpa handler (Node 22 menjatuhkan proses) — error disimpan
+      // dan dilempar di iterasi berikutnya / setelah loop.
+      const task: Promise<void> = uploadPageImage(imagePath, documentId)
+        .then((url) => {
+          pageUrls[index] = url;
+        })
+        .catch((error: unknown) => {
+          uploadError ??= error;
+        })
+        .finally(() => {
+          inflight.delete(task);
+        });
+      inflight.add(task);
+      if (inflight.size >= config.uploadConcurrency) await Promise.race(inflight);
+
+      await heartbeat(job.id); // beri tahu proses lain: job ini masih hidup (jangan di-claim ulang).
+    }
+    await Promise.all(inflight);
+    if (uploadError) throw uploadError;
+
+    // Thumbnail kartu dokumen: halaman 1 versi kecil (sampul di halaman browse/profil).
+    const thumbnailPath = join(workDir, "thumb.png");
+    await renderer.renderPageToFile(0, thumbnailPath, config.thumbnailSide);
     const thumbnailUrl = await uploadThumbnail(thumbnailPath, documentId);
 
     // Transaction: hapus page lama (kalau ini re-convert) lalu insert page baru + update status —
@@ -66,20 +91,15 @@ export async function processConvertJob(job: Job<ConvertJobData>): Promise<void>
           isWatermarked: false, // watermark preview dinamis bisa ditambah di tahap lanjut, ARCHITECTURE.md #13.
         })),
       }),
-      prisma.document.update({
-        where: { id: documentId },
+      // Hanya dokumen yang masih processing/failed yang jadi "ready" — jangan menghidupkan lagi dokumen
+      // yang admin sudah tolak (rejected) saat convert berjalan. updateMany: tidak error kalau dokumen sudah dihapus.
+      prisma.document.updateMany({
+        where: { id: documentId, status: { in: ["processing", "failed"] } },
         data: { status: "ready", convertedPdfUrl, thumbnailUrl },
       }),
     ]);
-  } catch (error) {
-    // Kalau ini adalah attempt terakhir (bukan mau di-retry lagi), flag dokumen "failed"
-    // supaya admin bisa lihat di panel & user dapat notifikasi — bukan diam-diam macet di "processing".
-    const isLastAttempt = job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
-    if (isLastAttempt) {
-      await prisma.document.update({ where: { id: documentId }, data: { status: "failed" } });
-    }
-    throw error; // tetap dilempar supaya BullMQ mencatat job sebagai failed & retry logic tetap jalan.
   } finally {
+    renderer?.close();
     await rm(workDir, { recursive: true, force: true });
   }
 }

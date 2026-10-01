@@ -49,6 +49,13 @@ enum ReportStatus {
   dismissed
 }
 
+enum ConvertJobStatus {
+  pending
+  active
+  done
+  failed
+}
+
 // --- Model ---
 
 model User {
@@ -123,11 +130,35 @@ model Document {
   transactions Transaction[]
   access   DocumentAccess[]
   reports  Report[]
+  convertJob ConvertJob?
 
   @@index([status])
   @@index([categoryId])
   @@index([searchVector], type: Gin, map: "documents_search_idx")
   @@map("documents")
+}
+
+// Antrean convert dokumen berbasis Postgres — pengganti BullMQ/Redis supaya bisa jalan di shared hosting
+// (tanpa Redis, tanpa proses worker permanen: worker dipanggil Cron Jobs cPanel tiap menit, lihat apps/worker).
+// Satu baris per dokumen (documentId unique); worker "meng-claim" baris lewat SELECT ... FOR UPDATE SKIP LOCKED.
+model ConvertJob {
+  id              String           @id @default(cuid())
+  documentId      String           @unique @map("document_id")
+  originalFileUrl String           @map("original_file_url")
+  fileType        FileType         @map("file_type")
+  status          ConvertJobStatus @default(pending)
+  attempts        Int              @default(0)
+  maxAttempts     Int              @default(3) @map("max_attempts")
+  runAfter        DateTime         @default(now()) @map("run_after") // jadwal retry (backoff) — job baru tidak diambil sebelum ini.
+  lockedAt        DateTime?        @map("locked_at") // diisi saat di-claim; dipakai mendeteksi worker yang mati di tengah jalan.
+  lastError       String?          @map("last_error")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([status, runAfter])
+  @@map("convert_jobs")
 }
 
 model DocumentPage {

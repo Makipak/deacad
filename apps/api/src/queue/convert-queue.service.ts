@@ -1,28 +1,49 @@
 import { Injectable } from "@nestjs/common";
-import { InjectQueue } from "@nestjs/bullmq";
-import type { Queue } from "bullmq";
-import { CONVERT_QUEUE_NAME } from "./queue.constants.js";
+import { prisma } from "@deacad/database";
 
-// Job payload disepakati bersama apps/worker — kalau field di sini berubah, worker juga harus ikut disesuaikan.
+// Job payload disepakati bersama apps/worker (lihat apps/worker/src/queue.ts) — kolomnya sama dengan
+// tabel convert_jobs, bukan lagi message di Redis.
 export interface ConvertJobData {
   documentId: string;
   originalFileUrl: string;
   fileType: "pdf" | "pptx";
 }
 
-// Producer sisi API — cuma nge-enqueue, TIDAK pernah proses convert di process ini
-// (proses berat dipisah ke worker, ARCHITECTURE.md #3, supaya API utama tidak ikut lemot/hang).
+// Client yang boleh dipakai enqueue: prisma biasa ATAU `tx` dari prisma.$transaction — dengan `tx`,
+// job ikut commit/rollback bersama transaksi pemanggil (mis. status pembayaran di syncStatus()).
+type JobDb = Pick<typeof prisma, "convertJob">;
+
+// Producer sisi API — cuma menulis baris ke tabel convert_jobs, TIDAK pernah memproses convert di
+// process ini (proses berat dipisah ke apps/worker, ARCHITECTURE.md #3). Antrean berbasis Postgres
+// menggantikan BullMQ/Redis supaya bisa jalan di shared hosting (worker dipanggil Cron Jobs cPanel).
 @Injectable()
 export class ConvertQueueService {
-  constructor(@InjectQueue(CONVERT_QUEUE_NAME) private readonly queue: Queue<ConvertJobData>) {}
+  async enqueue(data: ConvertJobData, db: JobDb = prisma): Promise<void> {
+    // Satu job per dokumen (documentId unique). Sudah ada & belum gagal -> biarkan, jangan di-reset:
+    // enqueue bisa terpanggil dua kali (mis. admin mematikan upload berbayar tepat saat webhook paid masuk).
+    await db.convertJob.upsert({
+      where: { documentId: data.documentId },
+      create: {
+        documentId: data.documentId,
+        originalFileUrl: data.originalFileUrl,
+        fileType: data.fileType,
+        runAfter: new Date(),
+      },
+      update: {},
+    });
 
-  async enqueue(data: ConvertJobData): Promise<void> {
-    await this.queue.add("convert", data, {
-      // Retry otomatis dengan backoff kalau LibreOffice crash/corrupt (ARCHITECTURE.md #9).
-      attempts: 3,
-      backoff: { type: "exponential", delay: 5000 },
-      removeOnComplete: true,
-      removeOnFail: false, // job gagal tetap disimpan supaya bisa diinspeksi admin.
+    // Job yang sudah gagal permanen (melewati maxAttempts) dihidupkan lagi kalau di-enqueue ulang.
+    await db.convertJob.updateMany({
+      where: { documentId: data.documentId, status: "failed" },
+      data: {
+        status: "pending",
+        attempts: 0,
+        runAfter: new Date(),
+        lockedAt: null,
+        lastError: null,
+        originalFileUrl: data.originalFileUrl,
+        fileType: data.fileType,
+      },
     });
   }
 }

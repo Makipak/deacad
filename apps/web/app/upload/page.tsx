@@ -9,6 +9,10 @@ import { apiFetch, ApiError } from "@/lib/api-client";
 import { loadSnapScript, snapPay } from "@/lib/midtrans";
 import { formatRupiah } from "@/lib/format";
 
+// PPTX hanya aktif kalau worker punya LibreOffice (lihat ALLOW_PPTX_UPLOAD di API).
+const ALLOW_PPTX = process.env.NEXT_PUBLIC_ALLOW_PPTX === "true";
+const ACCEPT_REGEX = ALLOW_PPTX ? /\.(pdf|pptx)$/i : /\.pdf$/i;
+
 const API_BASE = `${process.env.NEXT_PUBLIC_API_URL}/api/v1`;
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
 
@@ -98,9 +102,13 @@ export default function UploadPage() {
   function acceptFile(candidate: File | undefined) {
     if (!candidate) return;
     setDragActive(false);
-    if (!/\.(pdf|pptx)$/i.test(candidate.name)) {
+    if (!ACCEPT_REGEX.test(candidate.name)) {
       setFile(null);
-      setFileError("Format tidak didukung. Gunakan file PDF atau PPTX.");
+      setFileError(
+        ALLOW_PPTX
+          ? "Format tidak didukung. Gunakan file PDF atau PPTX."
+          : "Format tidak didukung. Gunakan file PDF (punya PPT? Ekspor dulu: File → Save As → PDF).",
+      );
       return;
     }
     if (candidate.size > MAX_FILE_SIZE_BYTES) {
@@ -326,13 +334,15 @@ export default function UploadPage() {
           ) : (
             <>
               <p className="mb-1.5 text-[15px] font-medium">Tarik &amp; lepas file di sini</p>
-              <p className="mb-3.5 text-[13px] text-muted">Format PDF atau PPTX, maks 50MB</p>
+              <p className="mb-3.5 text-[13px] text-muted">
+                {ALLOW_PPTX ? "Format PDF atau PPTX, maks 50MB" : "Format PDF, maks 50MB (PPT? ekspor ke PDF dulu)"}
+              </p>
               <label className="btn-secondary inline-flex cursor-pointer">
                 Pilih File
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf,.pptx"
+                  accept={ALLOW_PPTX ? ".pdf,.pptx" : ".pdf"}
                   onChange={(e) => acceptFile(e.target.files?.[0])}
                   className="hidden"
                 />
